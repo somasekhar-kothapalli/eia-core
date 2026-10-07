@@ -69,3 +69,21 @@ With risk R and a single exit at distance A: break-even win rate = `R / (R + A)`
 | NATGASMINI put 315 (−0.56) | 20.60 | 0.56 × 2.2 = 1.23 | 6.0% | 8.24 ⇒ **14.7 pts** | about ₹0.02/unit (0.1%) |
 
 A 40% premium target would need a 264-point crude or 13–15-point gas move: far beyond a pivot TP1 and a 90-minute window. Our stops are about 6–7% of premium, so a "20–30% of premium" stop cap never binds. Theta over 45 minutes is about 0.1% of premium, so decay is not a reason for a 30–45 minute time stop; IV contraction is the argument to test.
+
+## Option expiry calendar (looked up 7 Oct 2026)
+
+**Rule (fits 9 of 9 checkable cases): option expiry = futures expiry minus 2 MCX business days.** Checked on gas Jan, Feb, Mar, Apr, May and Oct 2026, crude May and Oct 2026, and the NATGASMINI Jan 2027 circular. MCX's own calendar page returned 403, so the sources are third-party pages (Groww expiry tables, Fyers expiry notices, a TeamLease copy of the MCX circular); **verify against MCX before relying on a ❓ date.**
+
+| Contract month | CRUDEOIL / CRUDEOILM option expiry | Basis | NATURALGAS / NATGASMINI option expiry | Basis |
+|---|---|---|---|---|
+| Oct 2026 (V2026) | **Thu 15 Oct** | ✅ chain loads | **Fri 23 Oct** | ✅ chain loads |
+| Nov 2026 (X2026) | Tue 17 Nov | ❓ derived (futures Thu 19 Nov) | Fri 20 Nov | ❓ derived (futures Tue 24 Nov) |
+| Dec 2026 (Z2026) | Wed 16 Dec | ❓ derived (futures Fri 18 Dec) | **23 or 24 Dec** | ❓ depends on whether MCX is open on 25 Dec (futures Mon 28 Dec): left empty |
+| Jan 2027 (F2027) | not known | futures date not found | **Thu 21 Jan** | ✅ NATGASMINI circular (futures Mon 25 Jan); NATURALGAS assumed same ❓ |
+| Feb 2027 (G2027) | not known | | not known | |
+
+- Crude futures 2026 (Groww table): 16 Jan, 19 Feb, 19 Mar, 20 Apr, 18 May, 18 Jun, 20 Jul, 19 Aug, 21 Sep, **19 Oct, 19 Nov, 18 Dec**. The dates are not a plain "19th" rule (Jan 16, May 18, Jun 18), so 2027 cannot be extrapolated.
+- Gas futures 2026 (Groww table): 27 Jan, 24 Feb, 26 Mar, 27 Apr, 26 May, 25 Jun, 28 Jul, 26 Aug, 25 Sep, **27 Oct, 24 Nov, 28 Dec**.
+- The NATGASMINI Jan 2027 options start trading 26 Oct 2026, which suggests options are listed about three months ahead, so **Nov and Dec 2026 gas options should already exist** ❓ (not seen directly). Crude listing lead time not checked.
+- CRUDEOILM is assumed to expire with CRUDEOIL ❓.
+- The indicator (`tradingview/mcx_option_chain_levels.pine`) holds this table in `expiryFor()`. Unknown dates stay empty and the table says so.

@@ -2,19 +2,6 @@
 indicator("MCX Option Chain + Levels", shorttitle="MCX OC+L", overlay=true, max_lines_count=20, max_labels_count=40)
 
 // ───────────────────────── Inputs ─────────────────────────
-GRP_EX = "Expiry"
-// Continuous symbols (CRUDEOIL1!, NATURALGAS1! ...) use these four dates.
-expiryCrude  = input.time(timestamp("15 Oct 2026 23:30 +0530"), "Expiry: CRUDEOIL (IST) for symbol 1!", group=GRP_EX)
-expiryNG     = input.time(timestamp("23 Oct 2026 23:30 +0530"), "Expiry: NATURALGAS (IST) for symbol 1!", group=GRP_EX)
-expiryCrudeM = input.time(timestamp("15 Oct 2026 23:30 +0530"), "Expiry: CRUDEOILM (IST) for symbol 1!", group=GRP_EX)
-expiryNGM    = input.time(timestamp("23 Oct 2026 23:30 +0530"), "Expiry: NATGASMINI (IST) for symbol 1!", group=GRP_EX)
-// Month symbols (CRUDEOILX2026 = Nov 2026 contract): one list per root, MONTHCODE=YYYY-MM-DD separated by ";" (no spaces needed).
-// Codes: V2026 Oct, X2026 Nov, Z2026 Dec, F2027 Jan, G2027 Feb. Dates are the OPTION expiry (23:30 IST); take them from the MCX calendar.
-expMapCrude  = input.string("V2026=2026-10-15", "Month expiries CRUDEOIL", group=GRP_EX, tooltip="Format: V2026=2026-10-15;X2026=YYYY-MM-DD. Option expiry dates from the MCX contract calendar.")
-expMapNG     = input.string("V2026=2026-10-23", "Month expiries NATURALGAS", group=GRP_EX, tooltip="Format: V2026=2026-10-23;X2026=YYYY-MM-DD")
-expMapCrudeM = input.string("V2026=2026-10-15", "Month expiries CRUDEOILM", group=GRP_EX, tooltip="Format: V2026=2026-10-15;X2026=YYYY-MM-DD")
-expMapNGM    = input.string("V2026=2026-10-23", "Month expiries NATGASMINI", group=GRP_EX, tooltip="Format: V2026=2026-10-23;X2026=YYYY-MM-DD")
-
 GRP_CH = "Chain"
 nStrikes = input.int(2, "Strikes each side of center", minval=1, maxval=12, group=GRP_CH,
      tooltip="Requests = 2 x (2N+1) + 3 market tickers. The center is the nearest strike when the chart loads; reload to re-center.")
@@ -55,17 +42,28 @@ stepForRoot(string rt) =>
         "NATGASMINI" => 5.0
         => 50.0
 
-// Expiry from a "X2026=2026-11-17;Z2026=..." list; na if the month is not listed.
-lookupExpiry(string mapStr, string key) =>
-    int res = na
-    array<string> items = str.split(str.replace_all(mapStr, " ", ""), ";")
-    for i = 0 to array.size(items) - 1
-        array<string> kv = str.split(array.get(items, i), "=")
-        if array.size(kv) == 2 and array.get(kv, 0) == key
-            array<string> d = str.split(array.get(kv, 1), "-")
-            if array.size(d) == 3
-                res := timestamp("Asia/Kolkata", int(str.tonumber(array.get(d, 0))), int(str.tonumber(array.get(d, 1))), int(str.tonumber(array.get(d, 2))), 23, 30, 0)
-    res
+// Option expiry dates (IST 23:30), one line per root and contract month. Rule: option expiry = futures expiry minus 2 MCX
+// business days (fits Jan-May and Oct 2026 gas notices, Oct and May 2026 crude, Jan 2027 NATGASMINI circular).
+//   CONFIRMED = loads on the chart / MCX notice or circular   DERIVED = rule applied to the 2026 futures expiry list
+//   (futures: crude 19 Nov, 18 Dec; gas 24 Nov, 28 Dec 2026)  na = not known yet: add the date when MCX publishes it.
+// CRUDEOILM is assumed to expire with CRUDEOIL.
+expiryFor(string rt, string code) =>
+    bool crude = rt == "CRUDEOIL" or rt == "CRUDEOILM"
+    bool gas = rt == "NATURALGAS" or rt == "NATGASMINI"
+    int d = na
+    if crude
+        d := switch code
+            "V2026" => timestamp("Asia/Kolkata", 2026, 10, 15, 23, 30, 0)   // CONFIRMED (chain loads)
+            "X2026" => timestamp("Asia/Kolkata", 2026, 11, 17, 23, 30, 0)   // DERIVED (futures 19 Nov)
+            "Z2026" => timestamp("Asia/Kolkata", 2026, 12, 16, 23, 30, 0)   // DERIVED (futures 18 Dec)
+            => na                                                           // F2027, G2027: not known yet
+    else if gas
+        d := switch code
+            "V2026" => timestamp("Asia/Kolkata", 2026, 10, 23, 23, 30, 0)   // CONFIRMED (chain loads)
+            "X2026" => timestamp("Asia/Kolkata", 2026, 11, 20, 23, 30, 0)   // DERIVED (futures 24 Nov)
+            "F2027" => timestamp("Asia/Kolkata", 2027, 1, 21, 23, 30, 0)    // CONFIRMED for NATGASMINI (MCX circular); NATURALGAS assumed same
+            => na                                                           // Z2026: 23 or 24 Dec (is MCX open on 25 Dec?), G2027: not known yet
+    d
 
 // ───────────────────────── Instrument resolution ─────────────────────────
 // Symbol forms: ROOT1! (continuous) or ROOT + month code + year, e.g. CRUDEOILX2026 (root CRUDEOIL, month X2026).
@@ -79,19 +77,14 @@ string contractCode = isMonthSym ? tail5 : isCont ? str.substring(tkr0, tkLen - 
 string prefixUsed = syminfo.prefix + ":" + root
 float stepUsed = stepForRoot(root)
 
-int contExpiry = switch root
-    "NATURALGAS" => expiryNG
-    "NATGASMINI" => expiryNGM
-    "CRUDEOILM"  => expiryCrudeM
-    => expiryCrude
-string mapUsed = switch root
-    "NATURALGAS" => expMapNG
-    "NATGASMINI" => expMapNGM
-    "CRUDEOILM"  => expMapCrudeM
-    => expMapCrude
-// 1! uses the four continuous dates, a month symbol uses its own list; 2! has no date, so it is refused.
-int expiryUsed = isMonthSym ? lookupExpiry(mapUsed, tail5) : contractCode == "2!" ? na : contExpiry
-string expiryMsg = na(expiryUsed) ? (isMonthSym ? "No expiry set for " + tail5 + ". Settings > Expiry: add " + tail5 + "=YYYY-MM-DD to the " + root + " month list." : "Use a month symbol (e.g. X2026) instead of " + contractCode + ".") : expiryUsed <= timenow ? "Expiry " + str.format_time(expiryUsed, "dd MMM yyyy", "Asia/Kolkata") + " has passed. Update the expiry or use the next month symbol." : ""
+// 1! = the first listed expiry that has not passed; a month symbol uses its own date; 2! has no date, so it is refused.
+int contExpiry = na
+for c in array.from("V2026", "X2026", "Z2026", "F2027", "G2027")
+    int e = expiryFor(root, c)
+    if na(contExpiry) and not na(e) and e > timenow
+        contExpiry := e
+int expiryUsed = isMonthSym ? expiryFor(root, tail5) : contractCode == "2!" ? na : contExpiry
+string expiryMsg = na(expiryUsed) ? (isMonthSym ? "No option expiry date in the script for " + root + " " + tail5 + " (not known yet). Add it to expiryFor() at the top of the script." : "Use a month symbol (e.g. X2026) instead of " + contractCode + ", or add a later expiry to expiryFor().") : expiryUsed <= timenow ? "Expiry " + str.format_time(expiryUsed, "dd MMM yyyy", "Asia/Kolkata") + " has passed. Use the next month symbol." : ""
 
 bool isCrude = root == "CRUDEOIL" or root == "CRUDEOILM"
 bool isNG    = root == "NATURALGAS" or root == "NATGASMINI"
