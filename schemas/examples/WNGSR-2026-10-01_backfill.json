@@ -1,0 +1,61 @@
+{
+  "schema_version": "2.0",
+  "event_id": "WNGSR-2026-10-01",
+  "mode": "backfill",
+  "status": "closed",
+  "report": "WNGSR",
+  "instrument": "NATGASMINI",
+  "release": {
+    "date": "2026-10-01",
+    "week_ending": "2026-09-25",
+    "scheduled_utc": "2026-10-01T14:30:00Z"
+  },
+  "metrics": [
+    {
+      "id": "net_change", "unit": "bcf", "role": "trigger",
+      "actual": 64, "previous": 53,
+      "consensus": [
+        { "source": "investing.com", "role": "primary", "value": 63, "capture_type": "backfilled", "captured_at": null },
+        { "source": "tradingeconomics.com", "role": "cross_check", "value": 64, "capture_type": "backfilled", "captured_at": null }
+      ],
+      "surprise": { "vs_primary": 1, "vs_cross_check": 0, "sd_units": null, "signs_agree": false }
+    },
+    { "id": "implied_flow", "unit": "bcf", "role": "context", "actual": 64, "previous": null, "consensus": [] },
+    { "id": "salt_net_change", "unit": "bcf", "role": "flag", "actual": -4, "previous": null, "consensus": [] }
+  ],
+  "bias": {
+    "direction": "unclear",
+    "basis_metric": "net_change",
+    "rule_result": "blocked",
+    "reasons": ["primary +1 Bcf and cross-check 0: signs disagree", "surprise is below EIA's sampling error of about 2 Bcf"]
+  },
+  "levels": {
+    "contract_symbol": "MCX:NATGASMINI1!",
+    "prev_day": { "date": "2026-09-30", "high": 294.8, "low": 286.4, "close": 291, "volume": 176739, "volume_ok": true },
+    "pivots": { "type": "floor", "P": 290.733, "R1": 295.067, "R2": 299.133, "R3": 303.467, "S1": 286.667, "S2": 282.333, "S3": 278.267 },
+    "opening_range": { "start_utc": "2026-10-01T14:30:00Z", "end_utc": "2026-10-01T14:45:00Z", "high": 291.3, "low": 289.3, "midpoint": 290.3 },
+    "bars_ref": { "file": "data/mcx_natgasmini_5min_release_windows.csv", "from_utc": "2026-10-01T14:00:00Z", "to_utc": "2026-10-01T16:00:00Z" }
+  },
+  "signal": {
+    "direction": "short",
+    "signal_candle_utc": "2026-10-01T14:55:00Z",
+    "entry_utc": "2026-10-01T15:00:00Z",
+    "entry_price": 288.5,
+    "stop": 290.3,
+    "tp1": 286.667,
+    "tp2": 282.333,
+    "price_only_outcome": { "exit_design": "E1", "exit_utc": "2026-10-01T15:10:00Z", "exit_price": 290.3, "exit_reason": "stop", "pnl_points": -1.8, "r_multiple": -1, "pnl_inr": null }
+  },
+  "trade": { "taken": false, "skip_reason": "sign_rule_blocked", "option": null, "risk": null, "outcome": null },
+  "config": {
+    "strategy_version": "spec-2026-10-07", "entry_style": "B1", "timeframe_min": 5, "pivot_type": "floor",
+    "stop_rule": "S1", "stop_trigger": "touch", "exit_design": "E1", "target_rule": "pivot", "time_stop_min": 90, "min_reward_to_risk": 1
+  },
+  "data_quality": { "flags": ["consensus_backfilled"], "notes": "Trading Economics consensus equals the actual, possibly overwritten after the print." },
+  "provenance": {
+    "created_at": "2026-10-07T12:00:00Z",
+    "updated_at": "2026-10-07T12:00:00Z",
+    "sources": ["ir.eia.gov/ngs/ngs.html", "investing.com", "tradingeconomics.com", "data/mcx_natgasmini_5min_release_windows.csv"]
+  },
+  "notes": "The sign rule blocks the trade. The price-only short would have been stopped out (-1.8 points)."
+}

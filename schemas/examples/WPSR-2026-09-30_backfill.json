@@ -1,0 +1,73 @@
+{
+  "schema_version": "2.0",
+  "event_id": "WPSR-2026-09-30",
+  "mode": "backfill",
+  "status": "closed",
+  "report": "WPSR",
+  "instrument": "CRUDEOIL",
+  "release": {
+    "date": "2026-09-30",
+    "week_ending": "2026-09-25",
+    "scheduled_utc": "2026-09-30T14:30:00Z"
+  },
+  "metrics": [
+    {
+      "id": "crude_stocks_change", "unit": "mb", "role": "trigger",
+      "actual": 0.922, "previous": 2.969,
+      "consensus": [
+        { "source": "investing.com", "role": "primary", "value": -0.7, "capture_type": "backfilled", "captured_at": null },
+        { "source": "tradingeconomics.com", "role": "cross_check", "value": -0.3, "capture_type": "backfilled", "captured_at": null }
+      ],
+      "surprise": { "vs_primary": 1.622, "vs_cross_check": 1.222, "sd_units": null, "signs_agree": true }
+    },
+    {
+      "id": "gasoline_stocks_change", "unit": "mb", "role": "flag",
+      "actual": -1.684, "previous": -1.686,
+      "consensus": [ { "source": "investing.com", "role": "primary", "value": -0.5, "capture_type": "backfilled", "captured_at": null } ],
+      "surprise": { "vs_primary": -1.184, "vs_cross_check": null, "sd_units": null, "signs_agree": null }
+    },
+    {
+      "id": "distillate_stocks_change", "unit": "mb", "role": "flag",
+      "actual": -2.251, "previous": -0.428,
+      "consensus": [ { "source": "investing.com", "role": "primary", "value": -0.2, "capture_type": "backfilled", "captured_at": null } ],
+      "surprise": { "vs_primary": -2.051, "vs_cross_check": null, "sd_units": null, "signs_agree": null }
+    },
+    { "id": "cushing_stocks_change", "unit": "mb", "role": "flag", "actual": 0.553, "previous": 2.266, "consensus": [] },
+    { "id": "refinery_utilization_change", "unit": "pts", "role": "flag", "actual": -1.5, "previous": -2.8, "consensus": [] }
+  ],
+  "bias": {
+    "direction": "bearish",
+    "basis_metric": "crude_stocks_change",
+    "rule_result": "allowed",
+    "reasons": ["surprise +1.622 mb (build against an expected draw)", "primary and cross-check agree in sign", "threshold X not yet set"]
+  },
+  "levels": {
+    "contract_symbol": "MCX:CRUDEOIL1!",
+    "prev_day": { "date": "2026-09-29", "high": 9125, "low": 8660, "close": 8675, "volume": 71228, "volume_ok": true },
+    "pivots": { "type": "floor", "P": 8820, "R1": 8980, "R2": 9285, "R3": 9445, "S1": 8515, "S2": 8355, "S3": 8050 },
+    "opening_range": { "start_utc": "2026-09-30T14:30:00Z", "end_utc": "2026-09-30T14:45:00Z", "high": 8809, "low": 8747, "midpoint": 8778 },
+    "bars_ref": { "file": "data/mcx_crudeoil_5min_release_windows.csv", "from_utc": "2026-09-30T14:00:00Z", "to_utc": "2026-09-30T16:00:00Z" }
+  },
+  "signal": {
+    "direction": "long",
+    "signal_candle_utc": "2026-09-30T15:20:00Z",
+    "entry_utc": "2026-09-30T15:25:00Z",
+    "entry_price": 8820,
+    "stop": 8778,
+    "tp1": 8980,
+    "tp2": 9285,
+    "price_only_outcome": { "exit_design": "E1", "exit_utc": "2026-09-30T15:30:00Z", "exit_price": 8778, "exit_reason": "stop", "pnl_points": -42, "r_multiple": -1, "pnl_inr": null }
+  },
+  "trade": { "taken": false, "skip_reason": "data_bias_conflicts_with_breakout", "option": null, "risk": null, "outcome": null },
+  "config": {
+    "strategy_version": "spec-2026-10-07", "entry_style": "B1", "timeframe_min": 5, "pivot_type": "floor",
+    "stop_rule": "S1", "stop_trigger": "touch", "exit_design": "E1", "target_rule": "pivot", "time_stop_min": 90, "min_reward_to_risk": 1
+  },
+  "data_quality": { "flags": ["consensus_backfilled"], "notes": "Consensus read after the release; the pre-release value may differ." },
+  "provenance": {
+    "created_at": "2026-10-07T12:00:00Z",
+    "updated_at": "2026-10-07T12:00:00Z",
+    "sources": ["eia.gov", "investing.com", "tradingeconomics.com", "data/mcx_crudeoil_5min_release_windows.csv"]
+  },
+  "notes": "The price-only breakout went long while the data bias was bearish: the conflict rule blocks the trade. The price-only result shows what the data filter avoided (-42 points)."
+}

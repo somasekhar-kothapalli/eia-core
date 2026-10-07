@@ -1,0 +1,240 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "release_event.schema.json",
+  "title": "EIA release event (one record per report release, live or historical)",
+  "description": "One record per WPSR (crude) or WNGSR (gas) release. The same shape is used for backfilled history, backtest runs and live trading: fields fill in as the event progresses (status). Facts (release, metrics, levels) come first; strategy output (signal, trade) and the parameters used (config) sit beside them. Units: stocks in mb (crude) or Bcf (gas); prices and stops in points of the MCX future; money in INR. Sign: build/injection positive, draw/withdrawal negative; surprise = actual - consensus (negative = bullish). All timestamps are ISO 8601 UTC with a Z.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "event_id", "mode", "status", "report", "instrument", "release", "metrics"],
+  "properties": {
+    "schema_version": { "const": "2.0" },
+    "event_id": { "type": "string", "pattern": "^(WPSR|WNGSR)-\\d{4}-\\d{2}-\\d{2}$", "description": "Report plus release date, e.g. WPSR-2026-09-30. For a backtest run the same id is reused under a different run folder." },
+    "mode": { "enum": ["live", "backfill", "backtest"], "description": "live: created in real time. backfill: reconstructed from history after the fact. backtest: strategy applied to history (adds signal, trade, config)." },
+    "status": { "enum": ["scheduled", "pre_release", "released", "window_open", "closed", "reviewed"], "description": "scheduled: record created, levels may be known. pre_release: consensus captured. released: actuals filled. window_open: trading window running. closed: window over, outcome filled. reviewed: checked against the log and the pause rule." },
+    "report": { "enum": ["WPSR", "WNGSR"] },
+    "instrument": { "enum": ["CRUDEOIL", "NATGASMINI", "CRUDEOILM", "NATURALGAS"] },
+    "release": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["date", "scheduled_utc"],
+      "properties": {
+        "date": { "type": "string", "format": "date" },
+        "week_ending": { "type": ["string", "null"], "format": "date" },
+        "scheduled_utc": { "type": "string", "format": "date-time", "description": "10:30 ET as UTC (14:30Z daylight, 15:30Z standard), or 12:00 ET (16:00Z / 17:00Z) on a holiday-delayed WPSR." },
+        "schedule_note": { "type": "string", "description": "e.g. Labor Day delay: Thursday 12:00 ET." }
+      }
+    },
+    "metrics": {
+      "type": "array",
+      "minItems": 1,
+      "description": "One entry per data point. Crude: crude_stocks_change (trigger), gasoline_stocks_change, distillate_stocks_change, cushing_stocks_change, refinery_utilization_change (flags), api_crude_change (context). Gas: net_change (trigger), implied_flow, salt_net_change (flag). Exactly one metric has role 'trigger'.",
+      "items": { "$ref": "#/$defs/metric" }
+    },
+    "bias": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Result of the signal rule (surprise sign, sign-agreement rule, threshold).",
+      "properties": {
+        "direction": { "enum": ["bullish", "bearish", "neutral", "unclear", null] },
+        "basis_metric": { "type": "string" },
+        "rule_result": { "enum": ["allowed", "blocked", null] },
+        "reasons": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "levels": { "$ref": "#/$defs/levels" },
+    "signal": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "The price-only breakout of the opening range, recorded whether or not the data rule allows a trade (lets us measure what the data filter adds).",
+      "properties": {
+        "direction": { "enum": ["long", "short", "none"] },
+        "signal_candle_utc": { "type": ["string", "null"], "format": "date-time" },
+        "entry_utc": { "type": ["string", "null"], "format": "date-time" },
+        "entry_price": { "type": ["number", "null"] },
+        "stop": { "type": ["number", "null"] },
+        "tp1": { "type": ["number", "null"] },
+        "tp2": { "type": ["number", "null"] },
+        "price_only_outcome": { "$ref": "#/$defs/outcome" }
+      }
+    },
+    "trade": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "The actual (live) or simulated (backtest) trade decision and result.",
+      "required": ["taken"],
+      "properties": {
+        "taken": { "type": "boolean" },
+        "skip_reason": { "type": ["string", "null"], "description": "e.g. sign_rule_blocked, data_bias_conflicts_with_breakout, no_breakout, rr_below_minimum, pause_rule." },
+        "option": { "$ref": "#/$defs/option" },
+        "risk": { "$ref": "#/$defs/risk" },
+        "outcome": { "$ref": "#/$defs/outcome" }
+      }
+    },
+    "config": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Parameters used to produce signal and trade, so a run is reproducible and live matches backtest.",
+      "properties": {
+        "strategy_version": { "type": "string" },
+        "entry_style": { "enum": ["B1", "F1", "P1"] },
+        "timeframe_min": { "type": "integer", "enum": [3, 5, 15] },
+        "pivot_type": { "enum": ["floor", "camarilla"] },
+        "stop_rule": { "enum": ["S1", "S2", "S3"] },
+        "stop_trigger": { "enum": ["touch", "close"] },
+        "exit_design": { "enum": ["E1", "E2", "E3"] },
+        "target_rule": { "enum": ["pivot", "r1", "r1.5", "r2"] },
+        "time_stop_min": { "type": "integer" },
+        "min_reward_to_risk": { "type": ["number", "null"] }
+      }
+    },
+    "data_quality": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "flags": { "type": "array", "items": { "enum": ["consensus_backfilled", "consensus_missing", "contract_roll_suspect", "thin_volume", "release_time_assumed", "window_truncated", "values_unverified"] } },
+        "notes": { "type": "string" }
+      }
+    },
+    "provenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "created_at": { "type": "string", "format": "date-time" },
+        "updated_at": { "type": "string", "format": "date-time" },
+        "sources": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "notes": { "type": "string" }
+  },
+  "$defs": {
+    "metric": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "unit", "role"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^[a-z][a-z0-9_]*$" },
+        "unit": { "enum": ["mb", "kb", "bcf", "pts", "pct"] },
+        "role": { "enum": ["trigger", "flag", "context"] },
+        "actual": { "type": ["number", "null"], "description": "First-release value." },
+        "previous": { "type": ["number", "null"] },
+        "consensus": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["source", "role", "value", "capture_type"],
+            "properties": {
+              "source": { "enum": ["investing.com", "tradingeconomics.com", "other"] },
+              "role": { "enum": ["primary", "cross_check"] },
+              "value": { "type": ["number", "null"] },
+              "capture_type": { "enum": ["pre_release", "backfilled"], "description": "backfilled = read after the release, so the forecast may have been overwritten." },
+              "captured_at": { "type": ["string", "null"], "format": "date-time" }
+            }
+          }
+        },
+        "surprise": {
+          "type": "object",
+          "additionalProperties": false,
+          "description": "Derived: actual minus consensus.",
+          "properties": {
+            "vs_primary": { "type": ["number", "null"] },
+            "vs_cross_check": { "type": ["number", "null"] },
+            "sd_units": { "type": ["number", "null"], "description": "vs_primary divided by the SD of past misses; null until that SD is known." },
+            "signs_agree": { "type": ["boolean", "null"], "description": "false if primary and cross-check give opposite signs, or either is zero." }
+          }
+        }
+      }
+    },
+    "levels": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Price context from the MCX future. Bars stay in CSV files; this record points to them.",
+      "properties": {
+        "contract_symbol": { "type": "string", "description": "e.g. MCX:CRUDEOIL1! (state if the roll rule used another contract)." },
+        "prev_day": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "date": { "type": "string", "format": "date" },
+            "high": { "type": "number" },
+            "low": { "type": "number" },
+            "close": { "type": "number" },
+            "volume": { "type": ["number", "null"] },
+            "volume_ok": { "type": ["boolean", "null"], "description": "false if volume < 50% of the previous 5-day median (contract roll)." }
+          }
+        },
+        "pivots": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "type": { "enum": ["floor", "camarilla"] },
+            "P": { "type": ["number", "null"] },
+            "R1": { "type": "number" }, "R2": { "type": "number" }, "R3": { "type": "number" }, "R4": { "type": ["number", "null"] },
+            "S1": { "type": "number" }, "S2": { "type": "number" }, "S3": { "type": "number" }, "S4": { "type": ["number", "null"] }
+          }
+        },
+        "opening_range": {
+          "type": ["object", "null"],
+          "additionalProperties": false,
+          "properties": {
+            "start_utc": { "type": "string", "format": "date-time" },
+            "end_utc": { "type": "string", "format": "date-time" },
+            "high": { "type": "number" },
+            "low": { "type": "number" },
+            "midpoint": { "type": "number" }
+          }
+        },
+        "bars_ref": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "file": { "type": "string" },
+            "from_utc": { "type": "string", "format": "date-time" },
+            "to_utc": { "type": "string", "format": "date-time" }
+          }
+        }
+      }
+    },
+    "outcome": {
+      "type": ["object", "null"],
+      "additionalProperties": false,
+      "properties": {
+        "exit_design": { "enum": ["E1", "E2", "E3"] },
+        "exit_utc": { "type": ["string", "null"], "format": "date-time" },
+        "exit_price": { "type": ["number", "null"] },
+        "exit_reason": { "enum": ["stop", "tp1", "tp2", "time", "manual", null] },
+        "pnl_points": { "type": ["number", "null"], "description": "In points of the underlying future." },
+        "r_multiple": { "type": ["number", "null"], "description": "pnl_points divided by the stop distance." },
+        "pnl_inr": { "type": ["number", "null"], "description": "Option P&L in INR for a live trade; null for price-only." }
+      }
+    },
+    "option": {
+      "type": ["object", "null"],
+      "additionalProperties": false,
+      "properties": {
+        "contract": { "type": "string", "description": "e.g. CRUDEOIL or NATGASMINI." },
+        "type": { "enum": ["CE", "PE"] },
+        "strike": { "type": "number" },
+        "expiry": { "type": "string", "format": "date" },
+        "qty": { "type": "number", "description": "Quantity per lot (100 bbl or 250 mmBtu)." },
+        "lots": { "type": "integer" },
+        "delta": { "type": ["number", "null"] },
+        "premium_entry": { "type": ["number", "null"] },
+        "premium_exit": { "type": ["number", "null"] },
+        "iv_before": { "type": ["number", "null"], "description": "ATM IV at T-5 min." },
+        "iv_after": { "type": ["number", "null"], "description": "ATM IV at T+15 min." }
+      }
+    },
+    "risk": {
+      "type": ["object", "null"],
+      "additionalProperties": false,
+      "properties": {
+        "account_inr": { "type": "number" },
+        "risk_inr": { "type": ["number", "null"], "description": "qty x delta x stop distance, per lot." },
+        "risk_pct": { "type": ["number", "null"] },
+        "premium_inr": { "type": ["number", "null"], "description": "Premium x qty = maximum loss." },
+        "premium_pct": { "type": ["number", "null"] }
+      }
+    }
+  }
+}
