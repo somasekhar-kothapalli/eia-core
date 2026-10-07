@@ -26,7 +26,8 @@
 | Item | Default now | Needs |
 |---|---|---|
 | Surprise threshold X (SD units; gas floor about 2 Bcf) | none | consensus history |
-| Conflict-flag rule for gasoline, distillate (and Cushing, utilization, Salt) | none | consensus history |
+| Conflict-flag rule for gasoline, distillate (and Cushing, utilization) | none | consensus history now in; test needs more intraday events |
+| ~~Salt flag~~ (gas) | **parked, untested (user decision 7 Oct 2026)** | regional gas tables, only if revisited |
 | Entry style | B1 breakout | more events; F1 and P1 variants |
 | Exit design | E1 | E2, E3 and targets as 1×, 1.5×, 2× the stop |
 | Stop trigger | touch | candle close |
