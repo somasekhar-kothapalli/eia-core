@@ -76,12 +76,13 @@ A 40% premium target would need a 264-point crude or 13–15-point gas move: far
 
 | Contract month | CRUDEOIL / CRUDEOILM option expiry | Basis | NATURALGAS / NATGASMINI option expiry | Basis |
 |---|---|---|---|---|
-| Oct 2026 (V2026) | **Thu 15 Oct** | ✅ chain loads | **Fri 23 Oct** | ✅ chain loads |
-| Nov 2026 (X2026) | Tue 17 Nov | ❓ derived (futures Thu 19 Nov) | Fri 20 Nov | ❓ derived (futures Tue 24 Nov) |
-| Dec 2026 (Z2026) | Wed 16 Dec | ❓ derived (futures Fri 18 Dec) | **23 or 24 Dec** | ❓ depends on whether MCX is open on 25 Dec (futures Mon 28 Dec): left empty |
-| Jan 2027 (F2027) | not known | futures date not found | **Thu 21 Jan** | ✅ NATGASMINI circular (futures Mon 25 Jan); NATURALGAS assumed same ❓ |
+| Oct 2026 (V2026) | **Thu 15 Oct** | ✅ chain loads | **Fri 23 Oct** | ✅ chain loads (mini and standard); a 27 Oct option does not exist |
+| Nov 2026 (X2026) | **Tue 17 Nov** | ✅ ticker exists (CRUDEOIL and CRUDEOILM), thin volume | **Fri 20 Nov** | ✅ NATGASMINI ticker exists, thin volume; a 24 Nov option does not exist; standard NATURALGAS not seen |
+| Dec 2026 (Z2026) | **Wed 16 Dec** | user-supplied, matches the rule; no Dec option found on TradingView on 7 Oct (probably not listed yet) | not set | futures Mon 28 Dec; option likely 23 or 24 Dec; no Dec gas option found yet |
+| Jan 2027 (F2027) | not known | | **Thu 21 Jan** | ✅ NATGASMINI circular (futures Mon 25 Jan); NATURALGAS assumed same ❓ |
 | Feb 2027 (G2027) | not known | | not known | |
 
+- **The user's list of 7 Oct (gas 27 Oct, 24 Nov, 28 Dec; crude 15 Oct, 17 Nov, 16 Dec) mixes two kinds of dates.** The crude dates are option expiries. The gas dates are the **futures** expiries; the gas option expiries are 23 Oct and 20 Nov (tested: the option tickers exist only on those dates).
 - Crude futures 2026 (Groww table): 16 Jan, 19 Feb, 19 Mar, 20 Apr, 18 May, 18 Jun, 20 Jul, 19 Aug, 21 Sep, **19 Oct, 19 Nov, 18 Dec**. The dates are not a plain "19th" rule (Jan 16, May 18, Jun 18), so 2027 cannot be extrapolated.
 - Gas futures 2026 (Groww table): 27 Jan, 24 Feb, 26 Mar, 27 Apr, 26 May, 25 Jun, 28 Jul, 26 Aug, 25 Sep, **27 Oct, 24 Nov, 28 Dec**.
 - The NATGASMINI Jan 2027 options start trading 26 Oct 2026, which suggests options are listed about three months ahead, so **Nov and Dec 2026 gas options should already exist** ❓ (not seen directly). Crude listing lead time not checked.

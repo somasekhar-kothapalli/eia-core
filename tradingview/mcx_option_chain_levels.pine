@@ -44,9 +44,10 @@ stepForRoot(string rt) =>
 
 // Option expiry dates (IST 23:30), one line per root and contract month. Rule: option expiry = futures expiry minus 2 MCX
 // business days (fits Jan-May and Oct 2026 gas notices, Oct and May 2026 crude, Jan 2027 NATGASMINI circular).
-//   CONFIRMED = loads on the chart / MCX notice or circular   DERIVED = rule applied to the 2026 futures expiry list
-//   (futures: crude 19 Nov, 18 Dec; gas 24 Nov, 28 Dec 2026)  na = not known yet: add the date when MCX publishes it.
-// CRUDEOILM is assumed to expire with CRUDEOIL.
+//   CONFIRMED = the option ticker exists on TradingView (tested 7 Oct 2026) or an MCX notice/circular gives the date
+//   USER = date supplied by the user, matches the rule, option not listed on TradingView yet   na = not known yet.
+// Futures expiries are different dates (crude 19 Oct/19 Nov/18 Dec, gas 27 Oct/24 Nov/28 Dec 2026): do not use them here.
+// CRUDEOILM expires with CRUDEOIL (confirmed for 17 Nov).
 expiryFor(string rt, string code) =>
     bool crude = rt == "CRUDEOIL" or rt == "CRUDEOILM"
     bool gas = rt == "NATURALGAS" or rt == "NATGASMINI"
@@ -54,15 +55,15 @@ expiryFor(string rt, string code) =>
     if crude
         d := switch code
             "V2026" => timestamp("Asia/Kolkata", 2026, 10, 15, 23, 30, 0)   // CONFIRMED (chain loads)
-            "X2026" => timestamp("Asia/Kolkata", 2026, 11, 17, 23, 30, 0)   // DERIVED (futures 19 Nov)
-            "Z2026" => timestamp("Asia/Kolkata", 2026, 12, 16, 23, 30, 0)   // DERIVED (futures 18 Dec)
+            "X2026" => timestamp("Asia/Kolkata", 2026, 11, 17, 23, 30, 0)   // CONFIRMED (CRUDEOIL and CRUDEOILM tickers exist)
+            "Z2026" => timestamp("Asia/Kolkata", 2026, 12, 16, 23, 30, 0)   // USER (rule agrees; no Dec option found on TradingView yet)
             => na                                                           // F2027, G2027: not known yet
     else if gas
         d := switch code
             "V2026" => timestamp("Asia/Kolkata", 2026, 10, 23, 23, 30, 0)   // CONFIRMED (chain loads)
-            "X2026" => timestamp("Asia/Kolkata", 2026, 11, 20, 23, 30, 0)   // DERIVED (futures 24 Nov)
+            "X2026" => timestamp("Asia/Kolkata", 2026, 11, 20, 23, 30, 0)   // CONFIRMED for NATGASMINI (ticker exists); NATURALGAS not seen
             "F2027" => timestamp("Asia/Kolkata", 2027, 1, 21, 23, 30, 0)    // CONFIRMED for NATGASMINI (MCX circular); NATURALGAS assumed same
-            => na                                                           // Z2026: 23 or 24 Dec (is MCX open on 25 Dec?), G2027: not known yet
+            => na                                                           // Z2026: no Dec gas option found yet (futures 28 Dec, option likely 23 or 24 Dec), G2027: not known
     d
 
 // ───────────────────────── Instrument resolution ─────────────────────────
