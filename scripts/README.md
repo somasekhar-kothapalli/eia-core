@@ -12,6 +12,7 @@ Each Investing.com event page embeds its own recent history in the page data: ab
 ```
 python scripts/fetch_investing_playwright.py --launch-chrome                      # all five series
 python scripts/fetch_investing_playwright.py --launch-chrome --series crude_stocks gas_storage
+python scripts/fetch_investing_playwright.py --launch-chrome --deep                # also the full table (about 1,000 rows each)
 ```
 
 Series: `crude_stocks` (EIA crude), `api_crude`, `gas_storage`, `gasoline`, `distillates`.
@@ -27,4 +28,4 @@ Series: `crude_stocks` (EIA crude), `api_crude`, `gas_storage`, `gasoline`, `dis
 
 ## Limits
 
-About 100 releases (back to Nov 2024) per page. Older history needs another source. Release times from the page are mostly right but a few look odd (for example 13:30 GMT in Mar 2025, a Monday 22:00 GMT row in Dec 2025): validate against the EIA schedule before relying on them for intraday work.
+The embedded data holds about 100 releases (back to Nov 2024). The history table also has a **"Show More" div** under it (a div, not a button). `--deep` clicks it (150 clicks max, 1.5 s apart) until the page stops at about 1,000 rows and writes `<series>_table.csv`. A full-screen sign-up overlay ("All markets. One FREE account", `#regwall-container`) can appear and block clicks; the script declines it with its X. Dates on in.investing.com are `dd-mm-yyyy` (handled). Release times from the page are mostly right but a few look odd (for example 13:30 GMT in Mar 2025, a Monday 22:00 GMT row in Dec 2025): validate against the EIA schedule before relying on them for intraday work.

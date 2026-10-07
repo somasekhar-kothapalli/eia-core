@@ -21,15 +21,16 @@ Rules (do not weaken them):
 Usage:  python scripts/fetch_investing_playwright.py --launch-chrome [--series crude_stocks gas_storage ...]
 """
 import argparse
+import csv
 import json
 import subprocess
 import sys
 import tempfile
 import time
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
-from playwright.sync_api import sync_playwright
+from playwright.sync_api import TimeoutError as PlaywrightTimeout, sync_playwright
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from fetch_investing_history import BASE, CHALLENGE, PAUSE_SECONDS, SERIES, save_series  # noqa: E402
@@ -66,10 +67,63 @@ def read_occurrences(page, url):
     return json.loads(raw)["props"]["pageProps"]["state"]["economicCalendarEventStore"]["occurrences"]
 
 
+TABLE = 'table[data-test="occurrence-table"]'
+IST = timedelta(hours=5, minutes=30)  # in.investing.com shows times in IST (no daylight saving)
+MAX_CLICKS = 150  # 10 rows per click; the page stops at 1000 rows
+
+
+def close_signup_wall(page):
+    """Decline the full-screen "All markets. One FREE account" sign-up overlay (it blocks clicks) with its X."""
+    x = page.locator("#regwall-container div.absolute.right-6.top-6")
+    if x.count():
+        x.first.dispatch_event("click")
+        time.sleep(1)
+
+
+def read_table_deep(page):
+    """Click the "Show More" div under the history table until it is gone or rows stop growing, then return all rows.
+
+    Each row: [release date, time as shown (browser time zone), actual, forecast, previous]. One click per 1.5 s.
+    """
+    page.wait_for_selector(TABLE, timeout=30000)
+    rows = page.locator(TABLE + " tbody tr")
+    for _ in range(MAX_CLICKS):
+        more = page.get_by_text("Show More", exact=True)
+        if not more.count():
+            break
+        close_signup_wall(page)
+        before = rows.count()
+        try:
+            more.first.click(timeout=4000)
+        except PlaywrightTimeout:  # re-render or popup made the click check fail: close popups, send the click event directly
+            page.keyboard.press("Escape")
+            more.first.dispatch_event("click")
+        time.sleep(1.5)
+        if rows.count() == before:
+            break
+    return page.evaluate("() => [...document.querySelectorAll('%s tbody tr')]"
+                         ".map(r => [...r.querySelectorAll('td')].map(c => c.textContent.trim()))" % TABLE)
+
+
+def write_deep(name, rows, out):
+    path = out / f"{name}_table.csv"
+    with open(path, "w", newline="", encoding="utf-8") as f:
+        w = csv.writer(f)
+        w.writerow(["release_utc", "release_date_shown", "time_shown_ist", "actual", "forecast", "previous"])
+        for r in rows:
+            d = r[0].split(" (")[0]  # older rows read "Dec 01, 2005 (Nov)"
+            fmt = "%d-%m-%Y" if d[2:3] == "-" else "%b %d, %Y"  # in.investing.com writes 15-10-2026
+            day = datetime.strptime(d, fmt).date().isoformat()
+            utc = (datetime.fromisoformat(f"{day}T{r[1]}") - IST).strftime("%Y-%m-%dT%H:%MZ")
+            w.writerow([utc, day, *r[1:5]])
+    print(f"{name}: {len(rows)} table rows -> {path}")
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--series", nargs="+", choices=sorted(SERIES), default=sorted(SERIES))
     ap.add_argument("--out", default="data/consensus")
+    ap.add_argument("--deep", action="store_true", help="also click Show More and save <series>_table.csv (all rows)")
     mode = ap.add_mutually_exclusive_group(required=True)
     mode.add_argument("--launch-chrome", action="store_true")
     mode.add_argument("--cdp", metavar="URL")
@@ -95,6 +149,8 @@ def main():
                     time.sleep(PAUSE_SECONDS)
                 occ = read_occurrences(page, BASE + SERIES[name][0])
                 save_series(name, occ, out, now, stamp)
+                if args.deep:
+                    write_deep(name, read_table_deep(page), out)
             page.close()
     finally:
         if proc:

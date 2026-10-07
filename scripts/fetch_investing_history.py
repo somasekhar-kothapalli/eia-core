@@ -32,7 +32,7 @@ import urllib.request
 from datetime import datetime, timezone
 from pathlib import Path
 
-BASE = "https://www.investing.com/economic-calendar/"
+BASE = "https://in.investing.com/economic-calendar/"
 SERIES = {
     "crude_stocks": ("eia-crude-oil-inventories-75", "EIA crude oil inventories (commercial)"),
     "api_crude": ("api-weekly-crude-stock-656", "API weekly crude oil stock"),
