@@ -90,6 +90,25 @@ Source: Investing.com history (99 weeks, fetched with `scripts/fetch_investing_p
 - **Gas reacts strongly and the effect continues on days 1 and 2** (t −3.0 and −2.6; Bonferroni threshold for 6 tests is about t 2.7, so the day-1 result passes and day 2 is borderline). Caveats ❓: weather news is persistent and drives both the storage number and the following price moves; and the EIA daily spot series may be timed a day behind futures. Needs a futures-based check.
 - Crude shows **no drift on days 1–2**, consistent with R4. These are daily results; the intraday MCX evidence (2.2) is still small.
 
+### 2.5 True consensus surprises on 15 years (rerun of 2.4)
+
+Source: `data/releases_crude.csv` / `releases_gas.csv` (usable rows, 2011 on, forecast present: crude 780 weeks, gas 767 usable with spot prices). z = surprise ÷ SD of **earlier** surprises only. Same spot returns as 2.4. Script `scripts/surprise_test_15y.py`, results `data/surprise_test_15y.csv`; parameters and periods fixed before running.
+
+| Series | Sample | n | corr(z, R0) | corr(z, R1) | corr(z, R2) | Slope R0 (% per SD) |
+|---|---|---|---|---|---|---|
+| Crude | 2011–2026 | 780 | **−0.116** (t −3.3) | +0.041 | +0.035 | −0.31 |
+| Crude | 2011–2018 | 383 | −0.236 (t −4.7) | 0.00 | −0.01 | −0.51 |
+| Crude | 2019–2026 | 397 | −0.055 (t −1.1) | +0.062 | +0.064 | −0.17 |
+| Crude | \|z\| ≥ 1 | 278 | −0.243 (t −4.2) | +0.075 | +0.034 | −0.34 |
+| Gas | 2011–2026 | 767 | −0.072 (t −2.0) | **−0.160** (t −4.5) | +0.031 | −0.42 |
+| Gas | 2011–2018 | 371 | −0.021 | −0.272 (t −5.4) | −0.076 | −0.08 |
+| Gas | 2019–2026 | 396 | −0.087 | −0.142 (t −2.8) | +0.063 | −0.57 |
+
+- ✅ **Crude:** the sign is right and the slope on release day is **−0.31% per SD**, matching the literature's −0.27% (R3). No drift on days 1–2 (R4 confirmed on 15 years). **The effect has faded: −0.24 correlation in 2011–2018, −0.06 (not significant) in 2019–2026.** Large surprises (|z| ≥ 1) carry most of it.
+- ✅ **Gas:** the reaction shows on **day 1, not on the release day** (R1 −0.16, t −4.5; R0 only −0.07), and **nothing on day 2**. So the "continuation on days 1–2" in 2.4 was mostly a timing artifact: the EIA daily Henry Hub spot is struck before 10:30 ET, so day 1 holds the reaction. Exploratory (not pre-registered) R0+R1 slope: **−1.8% per SD** (literature −1.16%), 2011–2018 −1.4, 2019–2026 −2.0.
+- ❓ The last-2-year gas numbers (slope −3.5 on R0, −9.7 on R0+R1) are far above the 15-year level: **a thin, unstable sample, not a better estimate.**
+- **What this does not show:** these are daily spot returns. It confirms the direction and size of the surprise effect, **not** that a 15-minute breakout entry after the move has an edge (the reaction is complete within minutes, R1).
+
 ## 3. What we know and do not know
 
 | Known (✅) | Not known (❓) |
