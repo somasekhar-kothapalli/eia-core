@@ -16,7 +16,7 @@
 
 1. ~~Investing.com consensus history~~ **Done:** about 2 years (99 weeks) per series from `scripts/fetch_investing.py`. Optional: older history (each page embeds only the latest 100 releases) would need another source.
 2. **Capture mode:** forward capture on request after each release, or scheduled (needs TradingView and Claude open).
-3. **Does the chain tool list the next-month expiry?** Needed for **Thu 15 Oct** (WPSR at 9:30 PM IST; CRUDEOIL options expire that day) and Thu 22 Oct (gas options expire the next day).
+3. **Does the chain tool list the next-month expiry?** Needed for **Thu 15 Oct** (WPSR at 9:30 PM IST; CRUDEOIL options expire that day) and Thu 22 Oct (gas options expire the next day). **Update 7 Oct 2026:** the indicator now takes month symbols (`CRUDEOILX2026`, `NATGASMINIV2026`) and was tested on the chart: Oct crude and Oct gas mini chains load (Missing 0/34); Nov shows a clear "No expiry set" message. **Still open:** the Nov/Dec option expiry dates (from the MCX calendar, to be added in the indicator's month lists) and whether Nov options are listed yet (the indicator prints "NO OPTION DATA" if not).
 4. Optional: a premium-per-lot limit (for example ≤ 20% of the account).
 
 (Pause-rule count: **combined across both instruments**, confirmed by the user 7 Oct 2026.)
