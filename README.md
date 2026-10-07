@@ -20,7 +20,7 @@ The report mechanics, release calendar (including holiday delays), data tables, 
 | [`07_open_items.md`](docs/07_open_items.md) | Next 24 hours, inputs needed, rules still to set, unverified items, parked items |
 | [`08_corrections_log.md`](docs/08_corrections_log.md) | Every source claim checked (74 rows), grouped by topic, plus my own errors |
 | [`snapshot_log.md`](docs/snapshot_log.md) | The fill-in template for each release (consensus, actuals, price, IV) |
-| [`data/`](data/), [`schemas/`](schemas/) | Raw bars, daily bars, event calendar, free EIA history, JSON schemas |
+| [`data/`](data/), [`scripts/`](scripts/), [`schemas/`](schemas/) | `data/consensus` and `data/eia` (raw inputs), `data/mcx` (bars, events), `data/derived` (merged tables, test results); scripts; JSON schemas |
 | [`archive/`](archive/) | The earlier versions of the notes (untouched) |
 
 ## Decisions made (by the user)
@@ -33,7 +33,7 @@ The report mechanics, release calendar (including holiday delays), data tables, 
 | 7 Oct | No 1% cap in Phase 1 (₹50,000); adopt 2% then 1% as the account grows |
 | 7 Oct | **Pause and review after 3 losing trades in a row, counted across both instruments combined** |
 | 7 Oct | Databento skipped; free EIA history and chart bars used instead; capture forward each week |
-| 7 Oct | Data stored as **CSV** (source of truth); consensus history copied by hand into `data/consensus/` |
+| 7 Oct | Data stored as **CSV** (source of truth); consensus history fetched into `data/consensus/` by `scripts/fetch_investing.py` |
 
 ## Headline findings
 
