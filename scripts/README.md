@@ -1,18 +1,24 @@
 # Scripts
 
+## Layout
+
+| Script | Role |
+|---|---|
+| `browser.py` | **Reusable, site-independent** real-Chrome helpers (Playwright over the DevTools protocol): `session(args)` (launch or attach), `goto` (stops on non-200 or a verification page), `next_data`, `load_all` (click a "load more" control until it is gone, declining listed overlays), `table_rows`, `pause`, `add_args`. Holds the scraping rules; import it for any other site |
+| `fetch_investing.py` | Investing.com only: series list, parsing, CSV writing, CLI. Uses `browser.py` |
+| `build_releases.py` | Merges the Investing tables, validates release times and actuals |
+| `surprise_test_15y.py` | Daily-horizon surprise test |
+
+The old plain-HTTP fetcher was removed: the API page answered it with HTTP 403 on 7 Oct 2026.
+
 ## Investing.com consensus history
 
-Each Investing.com event page embeds its own recent history in the page data: about 100 releases with actual, forecast, previous and the exact UTC release time, plus the next upcoming release. Two scripts read it and write the same outputs.
-
-| Script | How it gets the page | Use |
-|---|---|---|
-| `fetch_investing_playwright.py` | Loads each page in a real Chrome through Playwright over the DevTools protocol (`--launch-chrome` starts the installed Chrome with a throwaway profile; `--cdp URL` attaches to a Chrome you started). No download needed | **The one that worked** (7 Oct 2026: all five pages, no block) |
-| `fetch_investing_history.py` | One plain HTTP request per page | The API page returned HTTP 403 to it on 7 Oct 2026, so it stopped. Keep as a fallback; also holds the shared parse/save code |
+Each Investing.com event page embeds its own recent history in the page data: about 100 releases with actual, forecast, previous and the exact UTC release time, plus the next upcoming release. `--deep` also clicks the table's "Show More" until about 1,000 rows are loaded.
 
 ```
-python scripts/fetch_investing_playwright.py --launch-chrome                      # all five series
-python scripts/fetch_investing_playwright.py --launch-chrome --series crude_stocks gas_storage
-python scripts/fetch_investing_playwright.py --launch-chrome --deep                # also the full table (about 1,000 rows each)
+python scripts/fetch_investing.py --launch-chrome                      # all five series (embedded ~100 rows)
+python scripts/fetch_investing.py --launch-chrome --series crude_stocks gas_storage
+python scripts/fetch_investing.py --launch-chrome --deep                # also the full table (about 1,000 rows each)
 ```
 
 Series: `crude_stocks` (EIA crude), `api_crude`, `gas_storage`, `gasoline`, `distillates`.

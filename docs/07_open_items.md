@@ -6,7 +6,7 @@
 
 | When (IST) | Action |
 |---|---|
-| Wed 7 Oct, 7:55 PM | Consensus snapshot (Block A): run `python scripts/fetch_investing_playwright.py --launch-chrome --series crude_stocks api_crude gasoline distillates` for a timestamped pre-release row in `data/consensus/upcoming_snapshots.csv` (crude forecast was **+1.9 mb** at 10:00 UTC), plus a CRUDEOIL chain screenshot |
+| Wed 7 Oct, 7:55 PM | Consensus snapshot (Block A): run `python scripts/fetch_investing.py --launch-chrome --series crude_stocks api_crude gasoline distillates` for a timestamped pre-release row in `data/consensus/upcoming_snapshots.csv` (crude forecast was **+1.9 mb** at 10:00 UTC), plus a CRUDEOIL chain screenshot |
 | Wed 7 Oct, 8:00 PM | WPSR release. Actuals and surprises into Block B within 5 minutes |
 | Wed 7 Oct, 8:15 PM | Second chain screenshot (IV change, Block E) |
 | Wed 7 Oct, after 9:30 PM | Source check (Block C); Claude captures the 5-min bars and volume flags into `data/` |
@@ -14,7 +14,7 @@
 
 ## 2. Inputs needed from the user
 
-1. ~~Investing.com consensus history~~ **Done:** about 2 years (99 weeks) per series from `scripts/fetch_investing_playwright.py`. Optional: older history (each page embeds only the latest 100 releases) would need another source.
+1. ~~Investing.com consensus history~~ **Done:** about 2 years (99 weeks) per series from `scripts/fetch_investing.py`. Optional: older history (each page embeds only the latest 100 releases) would need another source.
 2. **Capture mode:** forward capture on request after each release, or scheduled (needs TradingView and Claude open).
 3. **Does the chain tool list the next-month expiry?** Needed for **Thu 15 Oct** (WPSR at 9:30 PM IST; CRUDEOIL options expire that day) and Thu 22 Oct (gas options expire the next day).
 4. Optional: a premium-per-lot limit (for example ≤ 20% of the account).

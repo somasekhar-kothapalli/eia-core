@@ -79,7 +79,7 @@ Weekly change minus the 5-year same-week mean, divided by its recent SD (z); ret
 
 ### 2.4 True consensus surprises on the daily horizon (about 2 years)
 
-Source: Investing.com history (99 weeks, fetched with `scripts/fetch_investing_playwright.py`) joined to EIA daily spot prices. Surprise = actual − consensus, in SD units (crude SD 4.82 mb, gas SD 9.39 Bcf). Returns are % log changes of WTI / Henry Hub spot: R0 release day, R1 next day, R2 two days later.
+Source: Investing.com history (99 weeks, fetched with `scripts/fetch_investing.py`) joined to EIA daily spot prices. Surprise = actual − consensus, in SD units (crude SD 4.82 mb, gas SD 9.39 Bcf). Returns are % log changes of WTI / Henry Hub spot: R0 release day, R1 next day, R2 two days later.
 
 | Series | n | corr(z, R0) | corr(z, R1) | corr(z, R2) | Slope on release day |
 |---|---|---|---|---|---|

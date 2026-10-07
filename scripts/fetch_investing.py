@@ -1,36 +1,28 @@
-"""Fetch EIA / API consensus history from Investing.com event pages into CSV.
+"""Fetch EIA / API consensus history from Investing.com event pages into CSV, through a real Chrome (see browser.py).
 
-How it works: each event page (a Next.js page) already contains its recent history in the server-rendered
-JSON (`__NEXT_DATA__` -> economicCalendarEventStore.occurrences): about 100 releases with actual, forecast,
-previous and the exact UTC release time, plus the next upcoming release. One plain GET per page is enough.
-
-Rules this script follows (do not weaken them):
-- One request per page, a pause between pages, a descriptive User-Agent, a timeout.
-- It stops on any non-200 answer or a challenge page. It never retries, rotates headers, uses proxies or
-  tries to get around a block.
-- Only pages the user listed are fetched. robots.txt allowed /economic-calendar/ when this was written;
-  the site's terms were not readable then, so keep the volume small and use for personal research only.
+Each event page (Next.js) embeds its latest ~100 releases (actual, forecast, previous, exact UTC time) plus the next
+upcoming release. With --deep the history table's "Show More" is clicked until about 1,000 rows are loaded.
 
 Outputs (default folder data/consensus/):
-- <series>.csv                 completed releases. Columns: release_date, release_time_gmt, actual, forecast,
-                               previous, unit, occurrence_id. The forecast is the value on the page at fetch
+- <series>.csv                 completed releases from the embedded data: release_date, release_time_gmt, actual,
+                               forecast, previous, unit, occurrence_id. The forecast is the value on the page at fetch
                                time, i.e. a BACKFILLED consensus (it may differ from the pre-release value).
-- upcoming_snapshots.csv       append-only: the upcoming release's forecast with the fetch time. Run it
-                               5 minutes before a release and the row is a true PRE-RELEASE snapshot.
-- raw/<series>_<UTC stamp>.json  the occurrences exactly as received (provenance).
+- <series>_table.csv           (--deep) the full table: release_utc, release_date_shown, time_shown_ist, actual,
+                               forecast, previous (values keep their units, e.g. 1.900M)
+- upcoming_snapshots.csv       append-only: the upcoming release's forecast with the fetch time. Run it 5 minutes
+                               before a release and the row is a true PRE-RELEASE snapshot.
+- raw/<series>_<UTC stamp>.json  the embedded occurrences exactly as received (provenance)
 
-Usage:  python scripts/fetch_investing_history.py [--series crude_stocks gas_storage ...] [--out data/consensus]
+Usage:  python scripts/fetch_investing.py --launch-chrome [--deep] [--series crude_stocks gas_storage ...] [--out data/consensus]
+Rules: see browser.py. Investing.com's terms could not be read; robots.txt allowed /economic-calendar/. Low volume, personal research only.
 """
 import argparse
 import csv
 import json
-import re
-import sys
-import time
-import urllib.error
-import urllib.request
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
+
+from browser import add_args, goto, load_all, next_data, pause, session, table_rows
 
 BASE = "https://in.investing.com/economic-calendar/"
 SERIES = {
@@ -40,35 +32,7 @@ SERIES = {
     "gasoline": ("gasoline-inventories-485", "EIA gasoline inventories"),
     "distillates": ("eia-weekly-distillates-stocks-917", "EIA distillates stocks"),
 }
-USER_AGENT = "eia-research-script/1.0 (personal research, low volume)"
-PAUSE_SECONDS = 4
 FIELDS = ["release_date", "release_time_gmt", "actual", "forecast", "previous", "unit", "occurrence_id"]
-CHALLENGE = re.compile(r"Just a moment|cf-chl-|Attention Required|Verify you are human", re.I)
-
-
-def fetch(url):
-    req = urllib.request.Request(url, headers={"User-Agent": USER_AGENT, "Accept-Language": "en-US,en;q=0.9"})
-    try:
-        with urllib.request.urlopen(req, timeout=30) as r:
-            body = r.read().decode("utf-8", "replace")
-            status = r.status
-    except urllib.error.HTTPError as e:
-        sys.exit(f"STOP: {url} answered HTTP {e.code}. Not retrying and not working around it.")
-    except urllib.error.URLError as e:
-        sys.exit(f"STOP: could not reach {url}: {e.reason}")
-    if status != 200:
-        sys.exit(f"STOP: {url} answered HTTP {status}.")
-    if CHALLENGE.search(body[:20000]):
-        sys.exit(f"STOP: {url} returned a challenge page. Not working around it; use the manual copy instead.")
-    return body
-
-
-def occurrences(html):
-    m = re.search(r'<script id="__NEXT_DATA__"[^>]*>(.*?)</script>', html, re.S)
-    if not m:
-        sys.exit("STOP: page layout changed (no __NEXT_DATA__). Update the parser or copy by hand.")
-    state = json.loads(m.group(1))["props"]["pageProps"]["state"]["economicCalendarEventStore"]
-    return state["occurrences"]
 
 
 def row(o):
@@ -115,18 +79,48 @@ def save_series(name, occ, out, now, stamp):
           f"upcoming: {[(r['release_date'], r['forecast']) for r in upcoming]}")
 
 
+TABLE = 'table[data-test="occurrence-table"]'
+SIGNUP_WALL_CLOSE = "#regwall-container div.absolute.right-6.top-6"  # "All markets. One FREE account" overlay: decline it
+IST = timedelta(hours=5, minutes=30)  # in.investing.com shows times in IST (no daylight saving)
+
+
+def occurrences(page):
+    return next_data(page)["props"]["pageProps"]["state"]["economicCalendarEventStore"]["occurrences"]
+
+
+def write_table(name, rows, out):
+    path = out / f"{name}_table.csv"
+    with open(path, "w", newline="", encoding="utf-8") as f:
+        w = csv.writer(f)
+        w.writerow(["release_utc", "release_date_shown", "time_shown_ist", "actual", "forecast", "previous"])
+        for r in rows:
+            d = r[0].split(" (")[0]  # older rows read "Dec 01, 2005 (Nov)"
+            day = datetime.strptime(d, "%d-%m-%Y" if d[2:3] == "-" else "%b %d, %Y").date().isoformat()  # in. site: 15-10-2026
+            utc = (datetime.fromisoformat(f"{day}T{r[1]}") - IST).strftime("%Y-%m-%dT%H:%MZ")
+            w.writerow([utc, day, *r[1:5]])
+    print(f"{name}: {len(rows)} table rows -> {path}")
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--series", nargs="+", choices=sorted(SERIES), default=sorted(SERIES))
     ap.add_argument("--out", default="data/consensus")
+    ap.add_argument("--deep", action="store_true", help="also click Show More and save <series>_table.csv (about 1,000 rows)")
+    add_args(ap)
     args = ap.parse_args()
     out = Path(args.out)
     now = datetime.now(timezone.utc)
     stamp = now.strftime("%Y%m%dT%H%M%SZ")
-    for i, name in enumerate(args.series):
-        if i:
-            time.sleep(PAUSE_SECONDS)
-        save_series(name, occurrences(fetch(BASE + SERIES[name][0])), out, now, stamp)
+    with session(args) as page:
+        for i, name in enumerate(args.series):
+            if i:
+                pause()
+            goto(page, BASE + SERIES[name][0])
+            save_series(name, occurrences(page), out, now, stamp)
+            if args.deep:
+                page.wait_for_selector(TABLE, timeout=30000)
+                load_all(page, "Show More", TABLE + " tbody tr", close_selectors=[SIGNUP_WALL_CLOSE])
+                write_table(name, table_rows(page, TABLE), out)
 
 
 if __name__ == "__main__":
