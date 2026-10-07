@@ -46,7 +46,7 @@
   - Record consensus **before** the release (5 minutes earlier) with source and timestamp. Some sites may overwrite their forecast after the print (Trading Economics showed gas consensus = actual).
   - **Primary source: Investing.com** (user decision). **Cross-check: Trading Economics** (also the only API source).
   - **Sign-disagreement rule:** if primary and cross-check give opposite signs of surprise, or either is zero, the bias is unclear: **no trade.**
-- **Threshold X** for "significant" is ❓ and should be set in **standard-deviation units** from our own history of misses. Floors: gas, X must exceed about **2 Bcf** (EIA's own sampling error). Crude: none yet.
+- **Threshold X** for "significant" is ❓ and set in **standard-deviation units**. Measured from Investing.com history (Nov 2024 to Sep 2026): the SD of (actual − consensus) is **4.82 mb for crude** (median miss 3.0 mb, 90th percentile 7.7) and **9.39 Bcf for gas** (median 5.0, 90th percentile 13.6). Candidate X = **0.5 SD** (about 2.4 mb crude, 4.7 Bcf gas) ❓, to be chosen before looking at forward results. For gas X must also exceed EIA's own sampling error of about 2 Bcf. Example: 30 Sep crude (+1.622 mb) = 0.34 SD and 1 Oct gas (+1 Bcf) = 0.11 SD: both below 0.5 SD.
 - **Conflict flags (secondary, ❓ rule not yet written):** crude: gasoline and distillate surprises (they move crude in the same direction in the literature), Cushing, refinery utilization. Gas: South Central Salt, stocks vs 5-year average. Only crude/gasoline/distillate and API have a consensus; Cushing and utilization do not.
 - **Conflict rule 🔧:** if the data bias and the breakout direction disagree: **no trade.**
 - ❓ The data filter may only duplicate what price already shows. Backtest whether it adds edge.

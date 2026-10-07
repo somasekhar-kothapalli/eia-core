@@ -111,7 +111,7 @@ Consolidated from the earlier per-file logs (74 rows, de-duplicated and grouped 
 1. Said refinery utilization was in Table 1 (it is in Table 2) and Cushing only "probably" in Table 4 (now verified).
 2. Ran the crude "9 Sep" event in pass 1; the WPSR was Thu 10 Sep at 12:00 ET. Corrected; earlier crude totals and the "5 of 6 continuation" reading were wrong.
 3. Gas daily-test bug: filtered out all Henry Hub prices under $5. Fixed.
-4. Guessed weekly gas misses were "a few Bcf". Withdrawn; size unknown.
+4. Guessed weekly gas misses were "a few Bcf". Wrong: measured over 98 weeks the median miss is 5.0 Bcf and the SD 9.4 Bcf (crude: median 3.0 mb, SD 4.8 mb).
 5. Used 25-point (crude) and 3-point (gas) illustrative stops; measured medians are 43 and 2.2 (crude risk is about 5% of the account, not 3%).
 6. Wrote "WPSR Wed 14 Oct". The release is Thu 15 Oct at 12:00 ET, the same day the crude options expire.
 7. Quoted a 58% break-even win rate and a "continuation 5 of 6" reading from the old 60/40 scheme and the invalid pass-1 date. Both superseded (break-even is now `R / (R + A)` for a single exit; continuation is 55–64%).

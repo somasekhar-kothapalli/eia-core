@@ -60,7 +60,9 @@
 | Gasoline (mb) | −1.684 | −0.5 | −1.184 | bullish |
 | Distillate (mb) | −2.251 | −0.2 | −2.051 | bullish |
 
-The primary trigger was bearish while both products were bullish. That is why the conflict-flag rule has to be written (spec §3). Products moving crude in the same direction is supported by the literature (`05_evidence.md`).
+The primary trigger was bearish while both products were bullish. That is why the conflict-flag rule has to be written (spec §3).
+
+**Measured surprise sizes (Investing.com, 99 releases Nov 2024 to Sep 2026), SD of actual − consensus:** crude **4.82 mb** (median |miss| 3.0, 90th percentile 7.7, largest 19.1; actuals above consensus by +0.67 mb on average, 58% of weeks), gasoline 2.56 mb, distillates 2.45 mb, API 5.24 mb (n = 76, forecast missing on 23 of 99 rows). 30 Sep crude (+1.622) is 0.34 SD. Products moving crude in the same direction is supported by the literature (`05_evidence.md`).
 
 ## 5. CRUDEOIL option chain (snapshot 6 Oct 2026, before the release; Fut 8,643, ATM 8,650, step 50, expiry 15 Oct 2026; Greeks as shown by the chart tool ❓)
 

@@ -1,6 +1,6 @@
 # Consensus history (copied by hand from Investing.com)
 
-Primary source (user decision). Paste the raw rows to Claude, who parses them into the CSVs below. No scraping.
+Primary source (user decision). The CSVs are filled by `scripts/fetch_investing_playwright.py` (a real Chrome loads each page and the script reads the page's embedded history: about 100 releases per series, back to Nov 2024). Columns now also include `unit` and `occurrence_id`. The manual-copy route below stays as a fallback if a page ever blocks the script. Forecasts in history rows are as shown at fetch time (backfilled).
 
 | Series | Page | Unit | Save as |
 |---|---|---|---|

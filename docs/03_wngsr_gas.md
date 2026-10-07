@@ -47,7 +47,7 @@ Regions sum to 3,415 and net changes to +64 ✅. Salt storage withdrew 4 Bcf whi
 | South Central Salt | Conflict flag ❓ |
 | Standard error (0.7 Bcf on 25 Sep) | Noise reference |
 
-- **Threshold X:** EIA's own sampling error averages about **2 Bcf** (Lower 48), 2.2–5.5 Bcf in 2016 weeks with withdrawals above 100 Bcf ✅. A surprise below about 2 Bcf is inside measurement noise: our 1 Oct miss (+1 Bcf) is noise. Typical analyst miss size is **unknown** (one unverified summary says about 13 Bcf average; trade-press examples show 8–13 Bcf).
+- **Threshold X:** EIA's own sampling error averages about **2 Bcf** (Lower 48), 2.2–5.5 Bcf in 2016 weeks with withdrawals above 100 Bcf ✅. A surprise below about 2 Bcf is inside measurement noise: our 1 Oct miss (+1 Bcf) is noise. **Measured misses (Investing.com, 98 releases Nov 2024 to Oct 2026): SD 9.39 Bcf, median |miss| 5.0 Bcf, 90th percentile 13.6, largest 47; actuals exceeded consensus on average by +1.2 Bcf (54% of weeks).** The earlier guess of "a few Bcf" was wrong and the 13 Bcf summary was roughly right.
 - From the literature: gas moves about **1.16% per 1 SD of surprise** (about 3.6 points at ₹306), much more than crude, and most of it within 5–7 minutes (`05_evidence.md`).
 
 ## 4. Consensus sources (chosen by the user; pages read 7 Oct 2026)

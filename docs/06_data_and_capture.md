@@ -10,9 +10,12 @@
 | `mcx_crudeoil_5min_release_windows.csv` | 5-min bars, release −30 to +90 minutes, 6 crude events: 26 Aug, 2 Sep, **10 Sep**, 16, 23, 30 Sep | 150 |
 | `mcx_natgasmini_5min_release_windows.csv` | Same window, 6 gas events: 27 Aug, 3, 10, 17, 24 Sep, 1 Oct | 150 |
 | `mcx_crudeoil_daily.csv`, `mcx_natgasmini_daily.csv` | Daily open/high/low/close/volume per MCX trading day, 24 Aug to 7 Oct (7 Oct partial) | 32 each |
+| `consensus/crude_stocks.csv`, `gas_storage.csv`, `api_crude.csv`, `gasoline.csv`, `distillates.csv` | **Consensus history from Investing.com** (7 Oct 2026, 98–99 completed releases each, 14 Nov 2024 to 1 Oct 2026): actual, forecast, previous, unit, exact UTC release time. API forecast missing on 23 of 99 rows, gasoline on 5, distillates on 6. Forecasts are *backfilled* (as shown at fetch time) | 98–99 each |
+| `consensus/upcoming_snapshots.csv`, `consensus/raw/` | Append-only snapshots of upcoming releases with the fetch time; raw JSON as received | |
+| `../scripts/` | `fetch_investing_playwright.py` (real Chrome via Playwright, worked) and `fetch_investing_history.py` (plain request, got a 403 on the API page); `README.md` has the rules | |
 | `eia/*.xls` (7 files) | Free EIA history, downloaded with the user's approval from eia.gov: WTI and Henry Hub daily spot (1986 and 1997 to 29 Sep 2026); weekly US crude, Cushing, gasoline, distillate stocks; weekly Lower 48 gas storage (2010 to 25 Sep 2026). Latest values match the EIA figures we verified | about 1.3 MB |
 | `eia/daily_horizon_test.py`, `daily_horizon_output.txt`, `*_z_returns.csv` | The daily-horizon proxy test (reproducible) | |
-| `../schemas/wpsr_crude.schema.json`, `wngsr_gas.schema.json`, `examples/` | JSON Schemas (draft 2020-12) for one record per release (consensus, actuals, surprise) and two example records | |
+| `../schemas/release_event.schema.json`, `examples/`, `README.md` | One unified JSON Schema (v2.0) for a release event, crude and gas, live and historical, plus three validated examples | |
 
 - Source of intraday bars: MCX continuous front month `CRUDEOIL1!` and `NATGASMINI1!` read from the user's TradingView chart. Times in UTC. The raw 15-minute and 30-minute bars used in pass 2 were **not** saved, only the derived results.
 - TradingView holds about **5,350 bars per symbol**: about 6 weeks of 5-min, 18 weeks of 15-min, 27–36 weeks of 30-min. The oldest days drop out as new days arrive, so **capture each week**.
@@ -63,7 +66,9 @@
 
 **Why API matters (timing):** API publishes Tuesday about 4:30 PM ET = 20:30 UTC = **2:00 AM IST Wednesday**, outside MCX hours (9:00 AM to 11:30 PM). MCX trades the API news during Wednesday's session, so by the 8:00 PM IST EIA release the API surprise is largely priced and most consensus numbers already lean on it. Useful derived columns: `API surprise` (API − API consensus), `EIA − API`, `EIA − consensus`.
 
-**Order of work**
+**Status 7 Oct 2026:** C1, C2, C3 (consensus part), C5, G1 and G2 are **done for about 2 years (14 Nov 2024 to 1 Oct 2026)** through `scripts/fetch_investing_playwright.py`. Each Investing page embeds only its latest 100 releases, so older history needs another source. Still open: C4/C6 extra EIA downloads (need approval), G3, and validating Investing's release times against the EIA calendar (a few look odd: 13:30 GMT in Mar 2025, a Monday 22:00 GMT row on 29 Dec 2025).
+
+**Order of work (original plan)**
 1. Crude: C1 + C2 from Investing.com (as far back as the page loads).
 2. Gas: G1 + G2.
 3. API: C5 (find the page, copy).

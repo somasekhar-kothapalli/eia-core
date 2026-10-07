@@ -77,6 +77,19 @@ Weekly change minus the 5-year same-week mean, divided by its recent SD (z); ret
 - A real surprise should lift the price on release day after a draw, so corr(z, R0) should be **negative**. **The proxy passes this only for crude before 2015, fails for Cushing and fails clearly for gas** (wrong sign). Likely reason: a gap from a seasonal average is largely predictable and already priced; the market reacts to the surprise versus **consensus**.
 - The crude reversal since 2015 (fading the bias after release-day close earned about +0.5% over 1 day and +0.6% over 2 days, t −2.6 and −2.3, 54–57% wins) is **not trusted**: about 20 numbers were examined, the proxy barely moved the price on release day in that period, and it is absent in 2000–2014. Not an intraday or option result.
 
+### 2.4 True consensus surprises on the daily horizon (about 2 years)
+
+Source: Investing.com history (99 weeks, fetched with `scripts/fetch_investing_playwright.py`) joined to EIA daily spot prices. Surprise = actual − consensus, in SD units (crude SD 4.82 mb, gas SD 9.39 Bcf). Returns are % log changes of WTI / Henry Hub spot: R0 release day, R1 next day, R2 two days later.
+
+| Series | n | corr(z, R0) | corr(z, R1) | corr(z, R2) | Slope on release day |
+|---|---|---|---|---|---|
+| Crude | 98 | −0.082 (t −0.8) | −0.056 (t −0.5) | +0.069 (t +0.7) | −0.25% per 1 SD |
+| Gas | 97 | **−0.350** (t −3.6) | **−0.296** (t −3.0) | **−0.262** (t −2.6) | −2.9% per 1 SD |
+
+- ✅ **The sign is right for both** (a draw lifts the price), unlike the free proxy. The crude slope of −0.25% per SD is close to the literature's −0.27% (R3) but **not significant at n = 98**.
+- **Gas reacts strongly and the effect continues on days 1 and 2** (t −3.0 and −2.6; Bonferroni threshold for 6 tests is about t 2.7, so the day-1 result passes and day 2 is borderline). Caveats ❓: weather news is persistent and drives both the storage number and the following price moves; and the EIA daily spot series may be timed a day behind futures. Needs a futures-based check.
+- Crude shows **no drift on days 1–2**, consistent with R4. These are daily results; the intraday MCX evidence (2.2) is still small.
+
 ## 3. What we know and do not know
 
 | Known (✅) | Not known (❓) |
@@ -84,7 +97,7 @@ Weekly change minus the 5-year same-week mean, divided by its recent SD (z); ret
 | The main reaction completes in minutes (R1); no next-day drift (R4) | Whether price continues after the first 15 minutes (B1) or fades (F1): sources conflict, our samples (n 14–22) are inconclusive |
 | A bigger surprise gives a bigger range and bigger risk (R5) | Whether the consensus surprise predicts the next 60–75 minutes (needs consensus history) |
 | Products move crude in the same direction (R6) | The conflict-flag rule |
-| Gas sampling noise is about 2 Bcf (R7) | Typical analyst miss size and SD for crude and gas |
+| Gas sampling noise is about 2 Bcf (R7). **Typical misses: crude SD 4.82 mb (median 3.0), gas SD 9.39 Bcf (median 5.0)** | Whether the 2-year miss distribution holds going forward |
 | Pivots from yesterday's range are far from the 90-minute action; stops are about 43 (crude) and 2.2 (gas) points | Whether targets as multiples of the stop beat pivots (not distinguishable at n ≈ 13) |
 | The free-data proxy cannot stand in for consensus | The real IV change around the release (needs chain snapshots at T − 5 and T + 15) |
 

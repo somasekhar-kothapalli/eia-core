@@ -1,0 +1,7 @@
+fetched_at_utc,series,release_date,release_time_gmt,actual,forecast,previous,unit,occurrence_id
+2026-10-07T10:00:34Z,api_crude,2026-10-14,20:30,,,-2.09,M,558780
+2026-10-07T10:00:34Z,crude_stocks,2026-10-07,14:30,,1.9,0.922,M,558550
+2026-10-07T10:00:34Z,distillates,2026-10-07,14:30,,,-2.251,M,558556
+2026-10-07T10:00:34Z,gas_storage,2026-10-15,14:30,,,,B,558723
+2026-10-07T10:00:34Z,gas_storage,2026-10-08,14:30,,,64,B,558353
+2026-10-07T10:00:34Z,gasoline,2026-10-07,14:30,,,-1.684,M,558555
