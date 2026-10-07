@@ -1,0 +1,91 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "wpsr_crude.schema.json",
+  "title": "WPSR release record (CRUDEOIL)",
+  "description": "One record per WPSR release (Wednesday 10:30 ET). Stocks changes in million barrels (mb): build positive, draw negative. Surprise = actual - consensus: positive = bearish, negative = bullish. Primary consensus source: Investing.com; cross-check: Trading Economics.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "report", "instrument", "release", "consensus", "actuals"],
+  "properties": {
+    "schema_version": { "const": "1.0" },
+    "report": { "const": "WPSR" },
+    "instrument": { "const": "CRUDEOIL" },
+    "release": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["date", "week_ending", "release_utc"],
+      "properties": {
+        "date": { "type": "string", "format": "date", "description": "Release date (a Wednesday unless a holiday shifts it)." },
+        "week_ending": { "type": "string", "format": "date", "description": "Friday the data covers." },
+        "release_utc": { "type": "string", "format": "date-time", "description": "10:30 ET as UTC, e.g. 14:30Z in US daylight time, 15:30Z in standard time." }
+      }
+    },
+    "consensus": {
+      "type": "array",
+      "minItems": 1,
+      "description": "One entry per source. Exactly one should have role 'primary'.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["source", "role", "capture_type", "crude_stocks_change_mb"],
+        "properties": {
+          "source": { "enum": ["investing.com", "tradingeconomics.com"] },
+          "role": { "enum": ["primary", "cross_check"] },
+          "capture_type": { "enum": ["pre_release", "backfilled"], "description": "backfilled = read after the release, so the forecast may have been overwritten." },
+          "captured_at": { "type": ["string", "null"], "format": "date-time", "description": "Time of the snapshot. null if unknown." },
+          "crude_stocks_change_mb": { "type": ["number", "null"] },
+          "gasoline_stocks_change_mb": { "type": ["number", "null"] },
+          "distillate_stocks_change_mb": { "type": ["number", "null"] },
+          "previous_crude_stocks_change_mb": { "type": ["number", "null"] }
+        }
+      }
+    },
+    "api": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "API figure released the evening before (Tuesday).",
+      "properties": {
+        "actual_crude_stocks_change_mb": { "type": ["number", "null"] },
+        "consensus_crude_stocks_change_mb": { "type": ["number", "null"] },
+        "source": { "type": "string" }
+      }
+    },
+    "actuals": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["crude_stocks_change_mb"],
+      "properties": {
+        "source": { "type": "string", "description": "e.g. 'eia.gov'. Note if any item came from an aggregator." },
+        "crude_stocks_change_mb": { "type": "number", "description": "Commercial crude, excluding SPR." },
+        "gasoline_stocks_change_mb": { "type": ["number", "null"] },
+        "distillate_stocks_change_mb": { "type": ["number", "null"] },
+        "cushing_stocks_change_mb": { "type": ["number", "null"] },
+        "refinery_utilization_change_pts": { "type": ["number", "null"], "description": "Percentage points, from EIA Table 2." },
+        "spr_change_kb": { "type": ["number", "null"], "description": "Thousand barrels." }
+      }
+    },
+    "surprise": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Derived. vs_primary = actual - primary consensus (mb). Optional sd_units once the SD of misses is known.",
+      "properties": {
+        "crude_vs_primary_mb": { "type": ["number", "null"] },
+        "crude_vs_cross_check_mb": { "type": ["number", "null"] },
+        "gasoline_vs_primary_mb": { "type": ["number", "null"] },
+        "distillate_vs_primary_mb": { "type": ["number", "null"] },
+        "crude_sd_units": { "type": ["number", "null"] },
+        "signs_agree": { "type": ["boolean", "null"], "description": "false if primary and cross-check give opposite signs, or either is zero." },
+        "trade_allowed_by_sign_rule": { "type": ["boolean", "null"] }
+      }
+    },
+    "post_release_check": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "investing_forecast_changed": { "type": ["boolean", "null"] },
+        "tradingeconomics_consensus_changed": { "type": ["boolean", "null"] }
+      }
+    },
+    "notes": { "type": "string" }
+  }
+}

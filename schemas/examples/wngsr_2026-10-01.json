@@ -1,0 +1,31 @@
+{
+  "schema_version": "1.0",
+  "report": "WNGSR",
+  "instrument": "NATGASMINI",
+  "release": { "date": "2026-10-01", "week_ending": "2026-09-25", "release_utc": "2026-10-01T14:30:00Z" },
+  "consensus": [
+    { "source": "investing.com", "role": "primary", "capture_type": "backfilled", "captured_at": null,
+      "net_change_bcf": 63, "range_low_bcf": null, "range_high_bcf": null, "previous_net_change_bcf": 53 },
+    { "source": "tradingeconomics.com", "role": "cross_check", "capture_type": "backfilled", "captured_at": null,
+      "net_change_bcf": 64, "range_low_bcf": null, "range_high_bcf": null, "previous_net_change_bcf": 53 }
+  ],
+  "actuals": {
+    "source": "ir.eia.gov/ngs/ngs.html",
+    "net_change_bcf": 64,
+    "implied_flow_bcf": 64,
+    "total_working_gas_bcf": 3415,
+    "vs_five_year_avg_bcf": 79,
+    "vs_year_ago_bcf": -138,
+    "south_central_salt_net_change_bcf": -4,
+    "eia_standard_error_bcf": 0.7
+  },
+  "surprise": {
+    "net_change_vs_primary_bcf": 1,
+    "net_change_vs_cross_check_bcf": 0,
+    "net_change_sd_units": null,
+    "signs_agree": false,
+    "within_eia_sampling_noise": true,
+    "trade_allowed_by_sign_rule": false
+  },
+  "notes": "Backfilled after the release. Trading Economics consensus equals the actual, possibly overwritten. Surprise of +1 Bcf is below the roughly 2 Bcf average EIA sampling error."
+}

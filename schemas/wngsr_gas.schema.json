@@ -1,0 +1,81 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "wngsr_gas.schema.json",
+  "title": "WNGSR release record (NATGASMINI)",
+  "description": "One record per WNGSR release (Thursday 10:30 ET). Net change in Bcf: injection positive, withdrawal negative. Surprise = actual - consensus: positive = bearish, negative = bullish. Primary consensus source: Investing.com; cross-check: Trading Economics.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "report", "instrument", "release", "consensus", "actuals"],
+  "properties": {
+    "schema_version": { "const": "1.0" },
+    "report": { "const": "WNGSR" },
+    "instrument": { "const": "NATGASMINI" },
+    "release": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["date", "week_ending", "release_utc"],
+      "properties": {
+        "date": { "type": "string", "format": "date", "description": "Release date (a Thursday unless a holiday shifts it)." },
+        "week_ending": { "type": "string", "format": "date", "description": "Friday the data covers." },
+        "release_utc": { "type": "string", "format": "date-time", "description": "10:30 ET as UTC, e.g. 14:30Z in US daylight time, 15:30Z in standard time." }
+      }
+    },
+    "consensus": {
+      "type": "array",
+      "minItems": 1,
+      "description": "One entry per source. Exactly one should have role 'primary'.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["source", "role", "capture_type", "net_change_bcf"],
+        "properties": {
+          "source": { "enum": ["investing.com", "tradingeconomics.com"] },
+          "role": { "enum": ["primary", "cross_check"] },
+          "capture_type": { "enum": ["pre_release", "backfilled"], "description": "backfilled = read after the release, so the forecast may have been overwritten." },
+          "captured_at": { "type": ["string", "null"], "format": "date-time", "description": "Time of the snapshot. null if unknown." },
+          "net_change_bcf": { "type": ["number", "null"] },
+          "range_low_bcf": { "type": ["number", "null"] },
+          "range_high_bcf": { "type": ["number", "null"] },
+          "previous_net_change_bcf": { "type": ["number", "null"] }
+        }
+      }
+    },
+    "actuals": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["net_change_bcf"],
+      "properties": {
+        "source": { "type": "string", "description": "e.g. 'ir.eia.gov/ngs/ngs.html'." },
+        "net_change_bcf": { "type": "number", "description": "Lower 48 total." },
+        "implied_flow_bcf": { "type": ["number", "null"] },
+        "total_working_gas_bcf": { "type": ["number", "null"] },
+        "vs_five_year_avg_bcf": { "type": ["number", "null"] },
+        "vs_year_ago_bcf": { "type": ["number", "null"] },
+        "south_central_salt_net_change_bcf": { "type": ["number", "null"] },
+        "eia_standard_error_bcf": { "type": ["number", "null"], "description": "EIA sampling standard error for the Lower 48 net change. A surprise below roughly 2 Bcf is within measurement noise." }
+      }
+    },
+    "surprise": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Derived. vs_primary = actual - primary consensus (Bcf). Optional sd_units once the SD of misses is known.",
+      "properties": {
+        "net_change_vs_primary_bcf": { "type": ["number", "null"] },
+        "net_change_vs_cross_check_bcf": { "type": ["number", "null"] },
+        "net_change_sd_units": { "type": ["number", "null"] },
+        "signs_agree": { "type": ["boolean", "null"], "description": "false if primary and cross-check give opposite signs, or either is zero." },
+        "within_eia_sampling_noise": { "type": ["boolean", "null"], "description": "true if the absolute surprise is below the EIA standard error (or the ~2 Bcf average)." },
+        "trade_allowed_by_sign_rule": { "type": ["boolean", "null"] }
+      }
+    },
+    "post_release_check": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "investing_forecast_changed": { "type": ["boolean", "null"] },
+        "tradingeconomics_consensus_changed": { "type": ["boolean", "null"] }
+      }
+    },
+    "notes": { "type": "string" }
+  }
+}

@@ -1,0 +1,31 @@
+{
+  "schema_version": "1.0",
+  "report": "WPSR",
+  "instrument": "CRUDEOIL",
+  "release": { "date": "2026-09-30", "week_ending": "2026-09-25", "release_utc": "2026-09-30T14:30:00Z" },
+  "consensus": [
+    { "source": "investing.com", "role": "primary", "capture_type": "backfilled", "captured_at": null,
+      "crude_stocks_change_mb": -0.700, "gasoline_stocks_change_mb": -0.5, "distillate_stocks_change_mb": -0.2, "previous_crude_stocks_change_mb": 2.969 },
+    { "source": "tradingeconomics.com", "role": "cross_check", "capture_type": "backfilled", "captured_at": null,
+      "crude_stocks_change_mb": -0.3, "gasoline_stocks_change_mb": -0.5, "distillate_stocks_change_mb": -0.2, "previous_crude_stocks_change_mb": 2.969 }
+  ],
+  "actuals": {
+    "source": "eia.gov (crude, SPR); gasoline, distillate, Cushing, refinery change read from investing.com and tradingeconomics",
+    "crude_stocks_change_mb": 0.922,
+    "gasoline_stocks_change_mb": -1.684,
+    "distillate_stocks_change_mb": -2.251,
+    "cushing_stocks_change_mb": 0.553,
+    "refinery_utilization_change_pts": -1.5,
+    "spr_change_kb": -785
+  },
+  "surprise": {
+    "crude_vs_primary_mb": 1.622,
+    "crude_vs_cross_check_mb": 1.222,
+    "gasoline_vs_primary_mb": -1.184,
+    "distillate_vs_primary_mb": -2.051,
+    "crude_sd_units": null,
+    "signs_agree": true,
+    "trade_allowed_by_sign_rule": true
+  },
+  "notes": "Backfilled after the release. Crude bearish while gasoline and distillate bullish: mixed print."
+}
