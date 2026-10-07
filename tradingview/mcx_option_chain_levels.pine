@@ -1,0 +1,483 @@
+//@version=6
+indicator("MCX Option Chain + Levels", shorttitle="MCX OC+L", overlay=true, max_lines_count=20, max_labels_count=40)
+
+// ───────────────────────── Inputs ─────────────────────────
+GRP_EX = "Expiry"
+// Continuous symbols (CRUDEOIL1!, NATURALGAS1! ...) use these four dates.
+expiryCrude  = input.time(timestamp("15 Oct 2026 23:30 +0530"), "Expiry: CRUDEOIL (IST) for symbol 1!", group=GRP_EX)
+expiryNG     = input.time(timestamp("23 Oct 2026 23:30 +0530"), "Expiry: NATURALGAS (IST) for symbol 1!", group=GRP_EX)
+expiryCrudeM = input.time(timestamp("15 Oct 2026 23:30 +0530"), "Expiry: CRUDEOILM (IST) for symbol 1!", group=GRP_EX)
+expiryNGM    = input.time(timestamp("23 Oct 2026 23:30 +0530"), "Expiry: NATGASMINI (IST) for symbol 1!", group=GRP_EX)
+// Month symbols (CRUDEOILX2026 = Nov 2026 contract): one list per root, MONTHCODE=YYYY-MM-DD separated by ";" (no spaces needed).
+// Codes: V2026 Oct, X2026 Nov, Z2026 Dec, F2027 Jan, G2027 Feb. Dates are the OPTION expiry (23:30 IST); take them from the MCX calendar.
+expMapCrude  = input.string("V2026=2026-10-15", "Month expiries CRUDEOIL", group=GRP_EX, tooltip="Format: V2026=2026-10-15;X2026=YYYY-MM-DD. Option expiry dates from the MCX contract calendar.")
+expMapNG     = input.string("V2026=2026-10-23", "Month expiries NATURALGAS", group=GRP_EX, tooltip="Format: V2026=2026-10-23;X2026=YYYY-MM-DD")
+expMapCrudeM = input.string("V2026=2026-10-15", "Month expiries CRUDEOILM", group=GRP_EX, tooltip="Format: V2026=2026-10-15;X2026=YYYY-MM-DD")
+expMapNGM    = input.string("V2026=2026-10-23", "Month expiries NATGASMINI", group=GRP_EX, tooltip="Format: V2026=2026-10-23;X2026=YYYY-MM-DD")
+
+GRP_CH = "Chain"
+nStrikes = input.int(2, "Strikes each side of center", minval=1, maxval=12, group=GRP_CH,
+     tooltip="Requests = 2 x (2N+1) + 3 market tickers. The center is the nearest strike when the chart loads; reload to re-center.")
+ratePct  = input.float(6.5, "Risk-free rate (%)", minval=0.0, group=GRP_CH)
+
+GRP_UI = "Display"
+showGreeks = input.bool(false, "Show Greeks (Gamma, Theta, Vega)", group=GRP_UI)
+volMode    = input.string("Raw", "Volume display", options=["Raw", "% of chain"], group=GRP_UI)
+heatOn     = input.bool(true, "Volume heat shading", group=GRP_UI)
+nearN      = input.int(3, "Near-ATM PCR: strikes each side", minval=1, maxval=12, group=GRP_UI)
+posOpt     = input.string("Top right", "Table position", options=["Top left", "Top right", "Middle right", "Bottom left", "Bottom right"], group=GRP_UI)
+mktPosOpt  = input.string("Top left", "Market table position", options=["Top left", "Top right", "Middle right", "Bottom left", "Bottom right"], group=GRP_UI)
+sizeOpt    = input.string("small", "Text size", options=["tiny", "small", "normal"], group=GRP_UI)
+
+GRP_PD = "Previous day levels"
+showPD = input.bool(true, "Show previous day levels", group=GRP_PD)
+colPDH = input.color(#EF5350, "PDH (resistance)", group=GRP_PD)
+colPDL = input.color(#26A69A, "PDL (support)", group=GRP_PD)
+colPDC = input.color(color.gray, "PDC (previous close)", group=GRP_PD)
+
+// ───────────────────────── Fixed settings ─────────────────────────
+// Option ticker = prefix + expiry(yyMMdd) + C/P + strike, e.g. MCX:CRUDEOIL261015P8400
+tkDateFmt = "yyMMdd"
+tkCallMid = "C"
+tkPutMid  = "P"
+
+// Market reference tickers (change here if a feed shows "-")
+fxTkr  = "FX_IDC:USDINR"
+oilTkr = "NYMEX:CL1!"
+ngTkr  = "NYMEX:NG1!"
+
+// Strike intervals: add a line per symbol root (chart ticker without 1! or the month code)
+stepForRoot(string rt) =>
+    switch rt
+        "CRUDEOIL"   => 50.0
+        "CRUDEOILM"  => 50.0
+        "NATURALGAS" => 5.0
+        "NATGASMINI" => 5.0
+        => 50.0
+
+// Expiry from a "X2026=2026-11-17;Z2026=..." list; na if the month is not listed.
+lookupExpiry(string mapStr, string key) =>
+    int res = na
+    array<string> items = str.split(str.replace_all(mapStr, " ", ""), ";")
+    for i = 0 to array.size(items) - 1
+        array<string> kv = str.split(array.get(items, i), "=")
+        if array.size(kv) == 2 and array.get(kv, 0) == key
+            array<string> d = str.split(array.get(kv, 1), "-")
+            if array.size(d) == 3
+                res := timestamp("Asia/Kolkata", int(str.tonumber(array.get(d, 0))), int(str.tonumber(array.get(d, 1))), int(str.tonumber(array.get(d, 2))), 23, 30, 0)
+    res
+
+// ───────────────────────── Instrument resolution ─────────────────────────
+// Symbol forms: ROOT1! (continuous) or ROOT + month code + year, e.g. CRUDEOILX2026 (root CRUDEOIL, month X2026).
+string tkr0 = syminfo.ticker
+int tkLen = str.length(tkr0)
+bool isCont = str.endswith(tkr0, "!") and tkLen > 2
+string tail5 = tkLen > 5 ? str.substring(tkr0, tkLen - 5) : ""
+bool isMonthSym = not isCont and tkLen > 5 and str.contains("FGHJKMNQUVXZ", str.substring(tail5, 0, 1)) and not na(str.tonumber(str.substring(tail5, 1)))
+string root = isCont ? str.substring(tkr0, 0, tkLen - 2) : isMonthSym ? str.substring(tkr0, 0, tkLen - 5) : tkr0
+string contractCode = isMonthSym ? tail5 : isCont ? str.substring(tkr0, tkLen - 2) : ""
+string prefixUsed = syminfo.prefix + ":" + root
+float stepUsed = stepForRoot(root)
+
+int contExpiry = switch root
+    "NATURALGAS" => expiryNG
+    "NATGASMINI" => expiryNGM
+    "CRUDEOILM"  => expiryCrudeM
+    => expiryCrude
+string mapUsed = switch root
+    "NATURALGAS" => expMapNG
+    "NATGASMINI" => expMapNGM
+    "CRUDEOILM"  => expMapCrudeM
+    => expMapCrude
+// 1! uses the four continuous dates, a month symbol uses its own list; 2! has no date, so it is refused.
+int expiryUsed = isMonthSym ? lookupExpiry(mapUsed, tail5) : contractCode == "2!" ? na : contExpiry
+string expiryMsg = na(expiryUsed) ? (isMonthSym ? "No expiry set for " + tail5 + ". Settings > Expiry: add " + tail5 + "=YYYY-MM-DD to the " + root + " month list." : "Use a month symbol (e.g. X2026) instead of " + contractCode + ".") : expiryUsed <= timenow ? "Expiry " + str.format_time(expiryUsed, "dd MMM yyyy", "Asia/Kolkata") + " has passed. Update the expiry or use the next month symbol." : ""
+
+bool isCrude = root == "CRUDEOIL" or root == "CRUDEOILM"
+bool isNG    = root == "NATURALGAS" or root == "NATGASMINI"
+string pFmt = syminfo.mintick < 1 ? "#.00" : "#"
+
+posFn(string s) =>
+    s == "Top left" ? position.top_left : s == "Middle right" ? position.middle_right : s == "Bottom left" ? position.bottom_left : s == "Bottom right" ? position.bottom_right : position.top_right
+
+tblPos  = posFn(posOpt)
+mktPos  = posFn(mktPosOpt)
+txtSize = sizeOpt == "tiny" ? size.tiny : sizeOpt == "normal" ? size.normal : size.small
+volPct  = volMode == "% of chain"
+
+// ───────────────────────── Types ─────────────────────────
+type Row
+    float k
+    float cLtp
+    float cChg
+    float cVol
+    float cIv
+    float cD
+    float cG
+    float cTh
+    float cV
+    float pLtp
+    float pChg
+    float pVol
+    float pIv
+    float pD
+    float pG
+    float pTh
+    float pV
+
+// ───────────────────────── Math ─────────────────────────
+npdf(float x) =>
+    math.exp(-0.5 * x * x) / math.sqrt(2.0 * math.pi)
+
+ncdf(float x) =>
+    k = 1.0 / (1.0 + 0.2316419 * math.abs(x))
+    poly = k * (0.319381530 + k * (-0.356563782 + k * (1.781477937 + k * (-1.821255978 + k * 1.330274429))))
+    p = 1.0 - npdf(x) * poly
+    x >= 0 ? p : 1.0 - p
+
+b76(float fw, float K, float T, float r, float sig, bool isCall) =>
+    sd = sig * math.sqrt(T)
+    d1 = (math.log(fw / K) + 0.5 * sig * sig * T) / sd
+    d2 = d1 - sd
+    df = math.exp(-r * T)
+    isCall ? df * (fw * ncdf(d1) - K * ncdf(d2)) : df * (K * ncdf(-d2) - fw * ncdf(-d1))
+
+impliedVol(float price, float fw, float K, float T, float r, bool isCall) =>
+    float res = na
+    float intrinsic = math.exp(-r * T) * math.max(isCall ? fw - K : K - fw, 0.0)
+    if not na(price) and price > intrinsic + fw * 0.00001 and T > 0
+        float lo = 0.01
+        float hi = 3.0
+        for n = 0 to 40
+            float mid = (lo + hi) / 2.0
+            if b76(fw, K, T, r, mid, isCall) > price
+                hi := mid
+            else
+                lo := mid
+        res := (lo + hi) / 2.0
+    res
+
+greeks(float fw, float K, float T, float r, float sig, bool isCall) =>
+    sqT = math.sqrt(T)
+    sd = sig * sqT
+    d1 = (math.log(fw / K) + 0.5 * sig * sig * T) / sd
+    df = math.exp(-r * T)
+    nd1 = npdf(d1)
+    delta = isCall ? df * ncdf(d1) : -df * ncdf(-d1)
+    gamma = df * nd1 / (fw * sd)
+    vega = fw * df * nd1 * sqT / 100.0
+    px = b76(fw, K, T, r, sig, isCall)
+    theta = (-fw * df * nd1 * sig / (2.0 * sqT) + r * px) / 365.0
+    [delta, gamma, theta, vega]
+
+// ───────────────────────── Helpers ─────────────────────────
+fmtN(float v, string f) =>
+    na(v) ? "-" : str.tostring(v, f)
+
+volTxt(bool pct, float v, float tot) =>
+    pct ? (na(v) or tot <= 0 ? "-" : str.tostring(v / tot * 100.0, "0.0") + "%") : fmtN(v, "#")
+
+heat(float v, float mx, color base, color dflt, bool on) =>
+    (on and not na(v) and mx > 0) ? color.new(base, 90.0 - v / mx * 70.0) : dflt
+
+getOpt(string tkr) =>
+    request.security(tkr, "D", [close, close[1], volume], ignore_invalid_symbol = true)
+
+addTag(array<label> bs, float y, string txt, color col) =>
+    if not na(y)
+        bs.push(label.new(bar_index, y, txt, style = label.style_label_left, color = color.new(col, 85), textcolor = col, size = size.small))
+    true
+
+addDayLine(array<line> ls, int x1, float y, color col, int w) =>
+    if not na(y) and not na(x1)
+        ls.push(line.new(x1, y, bar_index, y, extend = extend.right, color = col, width = w))
+    true
+
+// ───────────────────────── Market data (fixed tickers, every bar) ─────────────────────────
+[fxC, fxP]   = request.security(fxTkr, "D", [close, close[1]], ignore_invalid_symbol = true)
+[oilC, oilP] = request.security(oilTkr, "D", [close, close[1]], ignore_invalid_symbol = true)
+[ngC, ngP]   = request.security(ngTkr, "D", [close, close[1]], ignore_invalid_symbol = true)
+
+// ───────────────────────── Previous day levels (no request) ─────────────────────────
+var float dH = na
+var float dL = na
+var float pH = na
+var float pL = na
+var float pC = na
+var int dayStartIdx = na
+bool newDay = timeframe.change("D")
+if newDay
+    pH := dH
+    pL := dL
+    pC := close[1]
+    dH := high
+    dL := low
+    dayStartIdx := bar_index
+else
+    dH := na(dH) ? high : math.max(dH, high)
+    dL := na(dL) ? low : math.min(dL, low)
+
+float pdh = timeframe.isintraday ? pH : high[1]
+float pdl = timeframe.isintraday ? pL : low[1]
+float pdc = timeframe.isintraday ? pC : close[1]
+
+// ───────────────────────── State ─────────────────────────
+int ncStat = showGreeks ? 8 : 5
+int ncolsStat = ncStat * 2 + 1
+int fRowStat = 3 + (2 * nStrikes + 1)
+
+var table t = table.new(tblPos, 17, 34, bgcolor = #131722, border_width = 1, border_color = #2A2E39)
+var table mt = table.new(mktPos, 4, 6, bgcolor = #131722, border_width = 1, border_color = #2A2E39)
+var array<label> lvLabels = array.new<label>()
+var array<line> pdLines = array.new<line>()
+var float lockedCenter = na
+
+if barstate.isfirst
+    table.merge_cells(t, 0, 0, ncolsStat - 1, 0)
+    table.merge_cells(t, 0, 1, ncStat - 1, 1)
+    table.merge_cells(t, ncStat + 1, 1, ncolsStat - 1, 1)
+    table.merge_cells(t, 0, fRowStat, ncolsStat - 1, fRowStat)
+    table.merge_cells(t, 0, fRowStat + 1, ncolsStat - 1, fRowStat + 1)
+    table.merge_cells(t, 0, fRowStat + 2, ncolsStat - 1, fRowStat + 2)
+    table.merge_cells(t, 0, fRowStat + 3, ncolsStat - 1, fRowStat + 3)
+    table.merge_cells(mt, 0, 0, 3, 0)
+    table.merge_cells(mt, 0, 5, 3, 5)
+
+// Lock the chain center on the last confirmed historical bar so the requested
+// tickers are identical on realtime bars (Pine forbids new contexts in realtime).
+if barstate.islastconfirmedhistory or (barstate.isrealtime and na(lockedCenter))
+    lockedCenter := math.round(close / stepUsed) * stepUsed
+
+color cWhite = #D1D4DC
+color cHdr   = #2A2E39
+color cUp    = #26A69A
+color cDn    = #EF5350
+color cItm   = color.new(#2962FF, 85)
+color cAtm   = color.new(#FFB300, 60)
+color cBase  = #131722
+
+float fut = close
+
+// ───────────────────────── Market table ─────────────────────────
+if barstate.islast
+    float fxChg = fxC - fxP
+    float fxPct = (not na(fxP) and fxP != 0) ? (fxC / fxP - 1.0) * 100.0 : na
+    float oilChg = oilC - oilP
+    float oilPct = (not na(oilP) and oilP != 0) ? (oilC / oilP - 1.0) * 100.0 : na
+    float ngChg = ngC - ngP
+    float ngPct = (not na(ngP) and ngP != 0) ? (ngC / ngP - 1.0) * 100.0 : na
+    color fxCol = nz(fxChg) > 0 ? cUp : nz(fxChg) < 0 ? cDn : cWhite
+    color oilCol = nz(oilChg) > 0 ? cUp : nz(oilChg) < 0 ? cDn : cWhite
+    color ngCol = nz(ngChg) > 0 ? cUp : nz(ngChg) < 0 ? cDn : cWhite
+
+    table.cell(mt, 0, 0, "MARKET", text_color = color.white, bgcolor = cHdr, text_size = txtSize)
+    table.cell(mt, 0, 1, "", bgcolor = cHdr, text_size = txtSize)
+    table.cell(mt, 1, 1, "Price", text_color = cWhite, bgcolor = cHdr, text_size = txtSize)
+    table.cell(mt, 2, 1, "Chg", text_color = cWhite, bgcolor = cHdr, text_size = txtSize)
+    table.cell(mt, 3, 1, "Chg%", text_color = cWhite, bgcolor = cHdr, text_size = txtSize)
+
+    table.cell(mt, 0, 2, "USD/INR", text_color = color.white, bgcolor = cBase, text_size = txtSize)
+    table.cell(mt, 1, 2, fmtN(fxC, "0.000"), text_color = fxCol, bgcolor = cBase, text_size = txtSize)
+    table.cell(mt, 2, 2, fmtN(fxChg, "0.000"), text_color = fxCol, bgcolor = cBase, text_size = txtSize)
+    table.cell(mt, 3, 2, fmtN(fxPct, "0.00"), text_color = fxCol, bgcolor = cBase, text_size = txtSize)
+
+    table.cell(mt, 0, 3, "WTI (CL1!)", text_color = color.white, bgcolor = cBase, text_size = txtSize)
+    table.cell(mt, 1, 3, fmtN(oilC, "0.00"), text_color = oilCol, bgcolor = cBase, text_size = txtSize)
+    table.cell(mt, 2, 3, fmtN(oilChg, "0.00"), text_color = oilCol, bgcolor = cBase, text_size = txtSize)
+    table.cell(mt, 3, 3, fmtN(oilPct, "0.00"), text_color = oilCol, bgcolor = cBase, text_size = txtSize)
+
+    table.cell(mt, 0, 4, "NG (NYMEX)", text_color = color.white, bgcolor = cBase, text_size = txtSize)
+    table.cell(mt, 1, 4, fmtN(ngC, "0.000"), text_color = ngCol, bgcolor = cBase, text_size = txtSize)
+    table.cell(mt, 2, 4, fmtN(ngChg, "0.000"), text_color = ngCol, bgcolor = cBase, text_size = txtSize)
+    table.cell(mt, 3, 4, fmtN(ngPct, "0.00"), text_color = ngCol, bgcolor = cBase, text_size = txtSize)
+
+    float parOil = oilC * fxC
+    float parNg = ngC * fxC
+    string parTxt = ""
+    if isCrude
+        float premO = fut - parOil
+        float premOPct = (not na(parOil) and parOil != 0) ? premO / parOil * 100.0 : na
+        parTxt := "Parity " + fmtN(parOil, "#") + " | MCX " + fmtN(fut, "#") + " | Prem " + fmtN(premO, "#") + " (" + fmtN(premOPct, "0.0") + "%)"
+    else if isNG
+        float premN = fut - parNg
+        float premNPct = (not na(parNg) and parNg != 0) ? premN / parNg * 100.0 : na
+        parTxt := "Parity " + fmtN(parNg, "0.0") + " | MCX " + fmtN(fut, "0.0") + " | Prem " + fmtN(premN, "0.0") + " (" + fmtN(premNPct, "0.0") + "%)"
+    table.cell(mt, 0, 5, parTxt, text_color = cWhite, bgcolor = cHdr, text_size = txtSize)
+
+// ───────────────────────── Expiry problem: say so instead of an empty table ─────────────────────────
+if barstate.islast and expiryMsg != ""
+    table.cell(t, 0, 0, prefixUsed + " " + contractCode + " | " + expiryMsg, text_color = color.white, bgcolor = cHdr, text_size = txtSize)
+
+// ───────────────────────── Option chain ─────────────────────────
+if (barstate.islastconfirmedhistory or barstate.isrealtime) and not na(lockedCenter) and expiryMsg == ""
+    float T = math.max((expiryUsed - timenow) / (1000.0 * 60 * 60 * 24 * 365), 1.0 / 365.0 / 24.0)
+    float r = ratePct / 100.0
+    float center = lockedCenter
+    string expStr = str.upper(str.format_time(expiryUsed, tkDateFmt, "Asia/Kolkata"))
+    string kFmt = stepUsed % 1 == 0 ? "#" : "#.##"
+    int near = math.min(nearN, nStrikes)
+
+    // ── Pass 1: fetch + compute ──
+    array<Row> rows = array.new<Row>()
+    float totCV = 0.0
+    float totPV = 0.0
+    float nearCV = 0.0
+    float nearPV = 0.0
+    float maxCV = 0.0
+    float maxPV = 0.0
+    float maxCK = na
+    float maxPK = na
+    float maxAny = 0.0
+    float sumKV = 0.0
+    float sumV = 0.0
+    float atmK = na
+    float bestDist = 1.0e10
+    float atmC = na
+    float atmP = na
+    float atmIvC = na
+    float atmIvP = na
+    int missing = 0
+
+    for i = -nStrikes to nStrikes
+        float K = center + i * stepUsed
+        string kStr = str.tostring(K, kFmt)
+        string cTkr = prefixUsed + expStr + tkCallMid + kStr
+        string pTkr = prefixUsed + expStr + tkPutMid + kStr
+
+        [cLtp, cPrev, cVol] = getOpt(cTkr)
+        [pLtp, pPrev, pVol] = getOpt(pTkr)
+
+        missing += na(cLtp) ? 1 : 0
+        missing += na(pLtp) ? 1 : 0
+
+        Row rr = Row.new()
+        rr.k := K
+        rr.cLtp := cLtp
+        rr.pLtp := pLtp
+        rr.cVol := cVol
+        rr.pVol := pVol
+        rr.cChg := (not na(cLtp) and not na(cPrev) and cPrev != 0) ? (cLtp / cPrev - 1.0) * 100.0 : na
+        rr.pChg := (not na(pLtp) and not na(pPrev) and pPrev != 0) ? (pLtp / pPrev - 1.0) * 100.0 : na
+
+        float ivC = impliedVol(cLtp, fut, K, T, r, true)
+        float ivP = impliedVol(pLtp, fut, K, T, r, false)
+        rr.cIv := ivC
+        rr.pIv := ivP
+        if not na(ivC)
+            [d1c, g1c, th1c, v1c] = greeks(fut, K, T, r, ivC, true)
+            rr.cD := d1c
+            rr.cG := g1c
+            rr.cTh := th1c
+            rr.cV := v1c
+        if not na(ivP)
+            [d1p, g1p, th1p, v1p] = greeks(fut, K, T, r, ivP, false)
+            rr.pD := d1p
+            rr.pG := g1p
+            rr.pTh := th1p
+            rr.pV := v1p
+        rows.push(rr)
+
+        totCV += nz(cVol)
+        totPV += nz(pVol)
+        sumKV += K * (nz(cVol) + nz(pVol))
+        sumV += nz(cVol) + nz(pVol)
+        maxAny := math.max(maxAny, math.max(nz(cVol), nz(pVol)))
+        if math.abs(i) <= near
+            nearCV += nz(cVol)
+            nearPV += nz(pVol)
+        if nz(cVol) > maxCV
+            maxCV := cVol
+            maxCK := K
+        if nz(pVol) > maxPV
+            maxPV := pVol
+            maxPK := K
+        float dist = math.abs(K - fut)
+        if dist < bestDist
+            bestDist := dist
+            atmK := K
+            atmC := cLtp
+            atmP := pLtp
+            atmIvC := ivC
+            atmIvP := ivP
+
+    float totAll = totCV + totPV
+    float pcr = totCV > 0 ? totPV / totCV : na
+    float pcrNear = nearCV > 0 ? nearPV / nearCV : na
+    float vwc = sumV > 0 ? sumKV / sumV : na
+    float straddle = (not na(atmC) and not na(atmP)) ? atmC + atmP : na
+    float movePct = (not na(straddle) and fut > 0) ? straddle / fut * 100.0 : na
+    float atmIv = na
+    if not na(atmIvC) and not na(atmIvP)
+        atmIv := (atmIvC + atmIvP) / 2.0
+    else if not na(atmIvC)
+        atmIv := atmIvC
+    else if not na(atmIvP)
+        atmIv := atmIvP
+    int total = (2 * nStrikes + 1) * 2
+
+    // ── Pass 2: draw table ──
+    callHdr = showGreeks ? array.from("Vol", "Vega", "Theta", "Gamma", "Delta", "IV%", "Chg%", "LTP") : array.from("Vol", "Delta", "IV%", "Chg%", "LTP")
+    putHdr  = showGreeks ? array.from("LTP", "Chg%", "IV%", "Delta", "Gamma", "Theta", "Vega", "Vol") : array.from("LTP", "Chg%", "IV%", "Delta", "Vol")
+    int nc = ncStat
+
+    table.cell(t, 0, 0, prefixUsed + (isMonthSym ? " " + tail5 : "") + " | Fut " + fmtN(fut, pFmt) + " | ATM " + fmtN(atmK, kFmt) + " | Center " + fmtN(center, kFmt) + " | Step " + str.tostring(stepUsed) + " | Exp " + expStr, text_color = color.white, bgcolor = cHdr, text_size = txtSize)
+    table.cell(t, 0, 1, "CALLS", text_color = cUp, bgcolor = cHdr, text_size = txtSize)
+    table.cell(t, nc, 1, "", bgcolor = cHdr, text_size = txtSize)
+    table.cell(t, nc + 1, 1, "PUTS", text_color = cDn, bgcolor = cHdr, text_size = txtSize)
+    for j = 0 to nc - 1
+        table.cell(t, j, 2, callHdr.get(j), text_color = cUp, bgcolor = cHdr, text_size = txtSize)
+        table.cell(t, nc + 1 + j, 2, putHdr.get(j), text_color = cDn, bgcolor = cHdr, text_size = txtSize)
+    table.cell(t, nc, 2, "STRIKE", text_color = color.white, bgcolor = cHdr, text_size = txtSize)
+
+    for idx = 0 to rows.size() - 1
+        Row rr = rows.get(idx)
+        float K = rr.k
+        bool isAtm = K == atmK
+        string kTxt = str.tostring(K, kFmt) + (K == maxCK ? " R" : "") + (K == maxPK ? " S" : "")
+
+        callTxt = showGreeks ? array.from(volTxt(volPct, rr.cVol, totAll), fmtN(rr.cV, "0.00"), fmtN(rr.cTh, "0.00"), fmtN(rr.cG, "0.0000"), fmtN(rr.cD, "0.00"), fmtN(rr.cIv * 100.0, "0.0"), fmtN(rr.cChg, "0.0"), fmtN(rr.cLtp, "0.00")) : array.from(volTxt(volPct, rr.cVol, totAll), fmtN(rr.cD, "0.00"), fmtN(rr.cIv * 100.0, "0.0"), fmtN(rr.cChg, "0.0"), fmtN(rr.cLtp, "0.00"))
+        putTxt  = showGreeks ? array.from(fmtN(rr.pLtp, "0.00"), fmtN(rr.pChg, "0.0"), fmtN(rr.pIv * 100.0, "0.0"), fmtN(rr.pD, "0.00"), fmtN(rr.pG, "0.0000"), fmtN(rr.pTh, "0.00"), fmtN(rr.pV, "0.00"), volTxt(volPct, rr.pVol, totAll)) : array.from(fmtN(rr.pLtp, "0.00"), fmtN(rr.pChg, "0.0"), fmtN(rr.pIv * 100.0, "0.0"), fmtN(rr.pD, "0.00"), volTxt(volPct, rr.pVol, totAll))
+
+        int rw = 3 + idx
+        color callBg = isAtm ? cAtm : (K < fut ? cItm : cBase)
+        color putBg  = isAtm ? cAtm : (K > fut ? cItm : cBase)
+
+        for j = 0 to nc - 1
+            bool cIsVol = callHdr.get(j) == "Vol"
+            bool pIsVol = putHdr.get(j) == "Vol"
+            color cBg = cIsVol ? heat(rr.cVol, maxAny, cUp, callBg, heatOn) : callBg
+            color pBg = pIsVol ? heat(rr.pVol, maxAny, cDn, putBg, heatOn) : putBg
+            color cCol = callHdr.get(j) == "Chg%" ? (nz(rr.cChg) > 0 ? cUp : nz(rr.cChg) < 0 ? cDn : cWhite) : cWhite
+            color pCol = putHdr.get(j) == "Chg%" ? (nz(rr.pChg) > 0 ? cUp : nz(rr.pChg) < 0 ? cDn : cWhite) : cWhite
+            table.cell(t, j, rw, callTxt.get(j), text_color = cCol, bgcolor = cBg, text_size = txtSize)
+            table.cell(t, nc + 1 + j, rw, putTxt.get(j), text_color = pCol, bgcolor = pBg, text_size = txtSize)
+        table.cell(t, nc, rw, kTxt, text_color = isAtm ? color.black : color.white, bgcolor = isAtm ? color.new(#FFB300, 0) : cHdr, text_size = txtSize)
+
+    int fRow = fRowStat
+    string f1 = "Vol  Call " + str.tostring(totCV, "#") + " | Put " + str.tostring(totPV, "#") + " | PCR " + fmtN(pcr, "0.00") + " | PCR near-ATM (+/-" + str.tostring(near) + ") " + fmtN(pcrNear, "0.00")
+    string f2 = "ATM IV " + fmtN(atmIv * 100.0, "0.0") + "% | Straddle " + fmtN(straddle, "0.0") + " (+/-" + fmtN(movePct, "0.0") + "%) | Implied range " + fmtN(fut - straddle, pFmt) + " - " + fmtN(fut + straddle, pFmt)
+    string noData = missing == total ? "NO OPTION DATA: check the expiry date and that these options are listed | " : ""
+    string f3 = noData + "Peak call vol R " + fmtN(maxCK, kFmt) + " | Peak put vol S " + fmtN(maxPK, kFmt) + " | Vol-wtd center " + fmtN(vwc, pFmt) + " | DTE " + str.tostring(T * 365.0, "0.0") + " | Missing " + str.tostring(missing) + "/" + str.tostring(total)
+
+    string confR = (not na(maxCK) and not na(pdh) and math.abs(maxCK - pdh) <= stepUsed) ? " | R near PDH" : ""
+    string confS = (not na(maxPK) and not na(pdl) and math.abs(maxPK - pdl) <= stepUsed) ? " | S near PDL" : ""
+    string f4 = "PDH " + fmtN(pdh, pFmt) + " [" + fmtN(pdh - fut, pFmt) + "] | PDL " + fmtN(pdl, pFmt) + " [" + fmtN(pdl - fut, pFmt) + "] | PDC " + fmtN(pdc, pFmt) + " [" + fmtN(pdc - fut, pFmt) + "]" + confR + confS
+
+    table.cell(t, 0, fRow, f1, text_color = cWhite, bgcolor = cHdr, text_size = txtSize)
+    table.cell(t, 0, fRow + 1, f2, text_color = cWhite, bgcolor = cHdr, text_size = txtSize)
+    table.cell(t, 0, fRow + 2, f3, text_color = cWhite, bgcolor = cHdr, text_size = txtSize)
+    if showPD
+        table.cell(t, 0, fRow + 3, f4, text_color = cWhite, bgcolor = cHdr, text_size = txtSize)
+
+    // ── Today's previous-day levels (lines + labels) ──
+    while array.size(pdLines) > 0
+        line.delete(array.pop(pdLines))
+    while array.size(lvLabels) > 0
+        label.delete(array.pop(lvLabels))
+    if showPD
+        addDayLine(pdLines, dayStartIdx, pdh, colPDH, 2)
+        addDayLine(pdLines, dayStartIdx, pdl, colPDL, 2)
+        addDayLine(pdLines, dayStartIdx, pdc, colPDC, 1)
+        addTag(lvLabels, pdh, "PDH " + fmtN(pdh, pFmt), colPDH)
+        addTag(lvLabels, pdl, "PDL " + fmtN(pdl, pFmt), colPDL)
+        addTag(lvLabels, pdc, "PDC " + fmtN(pdc, pFmt), colPDC)
