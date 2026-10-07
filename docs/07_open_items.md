@@ -25,7 +25,7 @@
 
 | Item | Default now | Needs |
 |---|---|---|
-| Surprise threshold X (SD units; gas floor about 2 Bcf) | none | consensus history |
+| Surprise threshold X (SD units; gas floor about 2 Bcf) | none; **decided after the 7 Oct report (user), from the 15-year history, not from the 7 Oct outcome**; log 0.25 / 0.5 / 1.0 SD qualification for every release | 15-year surprise buckets |
 | Conflict-flag rule for gasoline, distillate (and Cushing, utilization) | none | consensus history now in; test needs more intraday events |
 | ~~Salt flag~~ (gas) | **parked, untested (user decision 7 Oct 2026)** | regional gas tables, only if revisited |
 | Entry style | B1 breakout | more events; F1 and P1 variants |
