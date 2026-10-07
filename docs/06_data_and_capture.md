@@ -2,20 +2,38 @@
 
 **Last revised:** 7 Oct 2026. Purpose: grow from about 15 events per instrument to 50+ so the open questions in `07_open_items.md` can be tested.
 
-## 1. What is saved (all under `data/`)
+## 1. What is saved (all under `data/`; three kinds: raw inputs, derived tables, MCX bars)
+
+**Raw inputs** (never edited by hand; re-fetched or appended by scripts)
 
 | File | Content | Rows |
 |---|---|---|
-| `events.csv` | The 12 release events with the **correct release times** (crude 10 Sep = 16:00 UTC, Thursday 12:00 ET) and notes on unusable days | 12 |
-| `mcx_crudeoil_5min_release_windows.csv` | 5-min bars, release −30 to +90 minutes, 6 crude events: 26 Aug, 2 Sep, **10 Sep**, 16, 23, 30 Sep | 150 |
-| `mcx_natgasmini_5min_release_windows.csv` | Same window, 6 gas events: 27 Aug, 3, 10, 17, 24 Sep, 1 Oct | 150 |
-| `mcx_crudeoil_daily.csv`, `mcx_natgasmini_daily.csv` | Daily open/high/low/close/volume per MCX trading day, 24 Aug to 7 Oct (7 Oct partial) | 32 each |
-| `consensus/crude_stocks.csv`, `gas_storage.csv`, `api_crude.csv`, `gasoline.csv`, `distillates.csv` | **Consensus history from Investing.com** (7 Oct 2026, 98–99 completed releases each, 14 Nov 2024 to 1 Oct 2026): actual, forecast, previous, unit, exact UTC release time. API forecast missing on 23 of 99 rows, gasoline on 5, distillates on 6. Forecasts are *backfilled* (as shown at fetch time) | 98–99 each |
-| `consensus/upcoming_snapshots.csv`, `consensus/raw/` | Append-only snapshots of upcoming releases with the fetch time; raw JSON as received | |
-| `../scripts/` | `browser.py` (reusable real-Chrome helpers, no site knowledge), `fetch_investing.py` (Investing.com), `build_releases.py` (merge and validate), `surprise_test_15y.py`; `README.md` has the rules | |
-| `eia/*.xls` (7 files) | Free EIA history, downloaded with the user's approval from eia.gov: WTI and Henry Hub daily spot (1986 and 1997 to 29 Sep 2026); weekly US crude, Cushing, gasoline, distillate stocks; weekly Lower 48 gas storage (2010 to 25 Sep 2026). Latest values match the EIA figures we verified | about 1.3 MB |
-| `eia/daily_horizon_test.py`, `daily_horizon_output.txt`, `*_z_returns.csv` | The daily-horizon proxy test (reproducible) | |
-| `../schemas/release_event.schema.json`, `examples/`, `README.md` | One unified JSON Schema (v2.0) for a release event, crude and gas, live and historical, plus three validated examples | |
+| `consensus/<series>_table.csv` (5 files: `crude_stocks`, `gas_storage`, `api_crude`, `gasoline`, `distillates`) | **Consensus history from Investing.com** (fetched 7 Oct 2026 with `--deep`, capped at about 1,000 rows): `release_utc` (shown IST time minus 5:30; matches Investing's embedded UTC on all 494 overlapping rows), shown date and time, actual, forecast, previous (units kept, e.g. `1.900M`). Forecasts from 2008 (crude), 2010 (gas, gasoline), 2012 (API), 2013 (distillates); backfilled, not pre-release | 750–1,000 each |
+| `consensus/raw/<series>.json` | The embedded page data (about 100 releases) exactly as received, overwritten each run | 5 |
+| `consensus/upcoming_snapshots.csv` | **Append-only** forecast of the next release with the fetch time; the only true pre-release consensus (from 7 Oct 2026) | grows |
+| `eia/*.xls` (14 files) | Free EIA history from eia.gov (history to the week ending 25 Sep 2026; prices to 29 Sep): WTI and Henry Hub daily spot; weekly commercial crude, Cushing, gasoline, distillate stocks; weekly Lower 48 gas storage (2010); and the 7 extra WPSR series (utilization, crude inputs, imports, exports, production, SPR, products supplied). Loaded by `scripts/eia_hist.py` | about 2.2 MB |
+
+**MCX bars** (`mcx/`, from the user's TradingView chart; times in UTC)
+
+| File | Content | Rows |
+|---|---|---|
+| `mcx/events.csv` | The 12 release events with the **correct release times** (crude 10 Sep = 16:00 UTC, Thursday 12:00 ET) and notes on unusable days | 12 |
+| `mcx/crudeoil_5min_release_windows.csv` | 5-min bars, release −30 to +90 minutes, 6 crude events: 26 Aug, 2 Sep, **10 Sep**, 16, 23, 30 Sep | 150 |
+| `mcx/natgasmini_5min_release_windows.csv` | Same window, 6 gas events: 27 Aug, 3, 10, 17, 24 Sep, 1 Oct | 150 |
+| `mcx/crudeoil_daily.csv`, `mcx/natgasmini_daily.csv` | Daily open/high/low/close/volume per MCX trading day, 24 Aug to 7 Oct (7 Oct partial) | 32 each |
+
+**Derived** (`derived/`; rebuilt by scripts, never edited by hand)
+
+| File | Built by | Content |
+|---|---|---|
+| `derived/releases_crude.csv`, `releases_gas.csv` | `scripts/build_releases.py` | One row per release: actual, forecast, surprise, `z_exp`, products and API (crude), time and actual checks, `usable` |
+| `derived/release_checks.csv` | `build_releases.py` | Every release that failed a time or actual check |
+| `derived/surprise_test_15y.csv` | `scripts/surprise_test_15y.py` | Result table of section 2.5 in `05_evidence.md` |
+| `derived/daily_proxy_output.txt` | `scripts/daily_proxy_test.py` | Output of the consensus-free proxy test (section 2.3) |
+
+Other folders: `../scripts/` (`browser.py` reusable real-Chrome helpers, `fetch_investing.py`, `eia_hist.py`, `build_releases.py`, `surprise_test_15y.py`, `daily_proxy_test.py`; `README.md` has the rules) and `../schemas/` (the unified release-event JSON Schema v2.0, three validated examples).
+
+**Removed 7 Oct 2026 (redundant or regenerable):** the per-series embedded CSVs (every row, with the exact UTC time, is in the tables and raw JSON), `eia_hist.pkl` (replaced by `eia_hist.py`), the three `*_z_returns.csv` intermediates, the duplicate timestamped raw JSON files. All are in git history.
 
 - Source of intraday bars: MCX continuous front month `CRUDEOIL1!` and `NATGASMINI1!` read from the user's TradingView chart. Times in UTC. The raw 15-minute and 30-minute bars used in pass 2 were **not** saved, only the derived results.
 - TradingView holds about **5,350 bars per symbol**: about 6 weeks of 5-min, 18 weeks of 15-min, 27–36 weeks of 30-min. The oldest days drop out as new days arrive, so **capture each week**.
@@ -68,9 +86,9 @@
 
 **Status 7 Oct 2026:** C1, C2, C3 (consensus part), C5, G1 and G2 are **done for about 2 years (14 Nov 2024 to 1 Oct 2026)** through `scripts/fetch_investing.py`. The page's embedded data holds only 100 releases (14 Nov 2024 on), but the history table has a **"Show More" div** (not a button; my first check on 7 Oct 2026 missed it). Run with `--deep` it clicks until about 1,000 rows load and writes `data/consensus/<series>_table.csv` (release_utc, release_date_shown, time_shown_ist, actual, forecast, previous; units kept as shown, e.g. 1.900M). Depth: **forecasts from about 2010–2013 (crude 2008) to Oct 2026**; API crude from Mar 2012 (749 rows); actuals go back further. Rows are the 1,000-row cap, not necessarily the start of the series. `release_utc` is the shown IST time minus 5:30, not yet validated against the EIA calendar; **older consensus is also as shown today, not a pre-release snapshot**. Still open: C4/C6 extra EIA downloads (need approval), G3, and validating Investing's release times against the EIA calendar (a few look odd: 13:30 GMT in Mar 2025, a Monday 22:00 GMT row on 29 Dec 2025).
 
-**Extra WPSR series downloaded 7 Oct 2026 (user approved the list; `data/eia/`, history to the week ending 25 Sep 2026):** `WPULEUS3w` refinery utilization % (1990), `WCRRIUS2w` refinery crude inputs (1982), `WCRIMUS2w` crude imports (1990), `WCREXUS2w` crude exports (1991), `WCRFPUS2w` crude production (1983), `WCSSTUS1w` SPR stocks (1982), `WRPUPUS2w` total products supplied (1990); source `eia.gov/dnav/pet/hist_xls/<ID>.xls`, 7 files about 0.8 MB. Their 25 Sep values match our verified Table 1/2 print (inputs 16,257 kb/d, SPR 283,767 kb, utilization 92.5%). **Not used in any test yet and none is a trigger** (the only trigger is the crude surprise). `scripts/eia_hist.py` now loads every `data/eia/*.xls` directly; the old `eia_hist.pkl` is no longer needed by `build_releases.py` or `surprise_test_15y.py` (identical results; only the archived `daily_horizon_test.py` still reads it).
+**Extra WPSR series downloaded 7 Oct 2026 (user approved the list; `data/eia/`, history to the week ending 25 Sep 2026):** `WPULEUS3w` refinery utilization % (1990), `WCRRIUS2w` refinery crude inputs (1982), `WCRIMUS2w` crude imports (1990), `WCREXUS2w` crude exports (1991), `WCRFPUS2w` crude production (1983), `WCSSTUS1w` SPR stocks (1982), `WRPUPUS2w` total products supplied (1990); source `eia.gov/dnav/pet/hist_xls/<ID>.xls`, 7 files about 0.8 MB. Their 25 Sep values match our verified Table 1/2 print (inputs 16,257 kb/d, SPR 283,767 kb, utilization 92.5%). **Not used in any test yet and none is a trigger** (the only trigger is the crude surprise). `scripts/eia_hist.py` now loads every `data/eia/*.xls` directly; the old `eia_hist.pkl` is gone (all scripts, including `daily_proxy_test.py`, reproduce their results through the loader).
 
-**Merged tables and time validation (7 Oct 2026, `scripts/build_releases.py`):** `data/releases_crude.csv` (WPSR: crude, gasoline, distillates, API; surprise = actual − forecast; `z_exp` = surprise ÷ SD of earlier weeks only), `data/releases_gas.csv` (WNGSR) and `data/release_checks.csv` (everything that failed a check). Results:
+**Merged tables and time validation (7 Oct 2026, `scripts/build_releases.py`):** `data/derived/releases_crude.csv` (WPSR: crude, gasoline, distillates, API; surprise = actual − forecast; `z_exp` = surprise ÷ SD of earlier weeks only), `data/derived/releases_gas.csv` (WNGSR) and `data/derived/release_checks.csv` (everything that failed a check). Results:
 - **Time check** (release_utc converted to New York time, expected Wed/Thu 10:30 ET): crude 800 ok, 137 holiday-shifted, 62 unexplained; gas 850 ok, 48 holiday-shifted, 100 unexplained. Delayed releases show at **11:00 ET (Thursday) up to 2024 and 12:00 ET from 2025**, matching the EIA schedule, about 7–10 a year.
 - **Rows before mid-2008 are unusable**: dates fall on the 1st of the month and times at 04:00–05:00 ET. Of the unexplained rows from 2009 on, about 9 per report have odd times (10:25, 10:29, 10:00, 09:30 ET on 12 and 19 Mar 2025, Mon 29 Dec 2025 17:00 ET, gas Thu 1 May 2025 14:00 ET). `usable` = false for them; do not use these for intraday work.
 - **Actual vs EIA's own stock series:** crude 958 of 999 match (the rest are old junk rows and small year-start revisions of 0.5–3 mb); gas 633 match, 126 have no EIA row (before 2010) and the 2010–2015 differences are ±1–2 Bcf, so Investing shows the number as first reported while EIA's levels were later revised. A few large ones (gas 15 Nov 2023 −66, crude +10.3) sit on rows with a 10:29 time and look like a wrong release date at Investing.

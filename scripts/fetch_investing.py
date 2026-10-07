@@ -4,14 +4,13 @@ Each event page (Next.js) embeds its latest ~100 releases (actual, forecast, pre
 upcoming release. With --deep the history table's "Show More" is clicked until about 1,000 rows are loaded.
 
 Outputs (default folder data/consensus/):
-- <series>.csv                 completed releases from the embedded data: release_date, release_time_gmt, actual,
-                               forecast, previous, unit, occurrence_id. The forecast is the value on the page at fetch
-                               time, i.e. a BACKFILLED consensus (it may differ from the pre-release value).
-- <series>_table.csv           (--deep) the full table: release_utc, release_date_shown, time_shown_ist, actual,
-                               forecast, previous (values keep their units, e.g. 1.900M)
+- <series>_table.csv           (--deep) the full history table: release_utc, release_date_shown, time_shown_ist, actual,
+                               forecast, previous (values keep their units, e.g. 1.900M). The forecast is the value on the
+                               page at fetch time, i.e. a BACKFILLED consensus (it may differ from the pre-release value).
 - upcoming_snapshots.csv       append-only: the upcoming release's forecast with the fetch time. Run it 5 minutes
                                before a release and the row is a true PRE-RELEASE snapshot.
-- raw/<series>_<UTC stamp>.json  the embedded occurrences exactly as received (provenance)
+- raw/<series>.json            the embedded occurrences exactly as received, overwritten each run (the snapshot file keeps
+                               the forecast history; git keeps old versions)
 
 Usage:  python scripts/fetch_investing.py --launch-chrome [--deep] [--series crude_stocks gas_storage ...] [--out data/consensus]
 Rules: see browser.py. Investing.com's terms could not be read; robots.txt allowed /economic-calendar/. Low volume, personal research only.
@@ -32,7 +31,7 @@ SERIES = {
     "gasoline": ("gasoline-inventories-485", "EIA gasoline inventories"),
     "distillates": ("eia-weekly-distillates-stocks-917", "EIA distillates stocks"),
 }
-FIELDS = ["release_date", "release_time_gmt", "actual", "forecast", "previous", "unit", "occurrence_id"]
+FIELDS = ["release_date", "release_time_gmt", "actual", "forecast", "previous", "unit", "occurrence_id"]  # upcoming_snapshots.csv columns
 
 
 def row(o):
@@ -48,23 +47,13 @@ def row(o):
     }
 
 
-def write_csv(path, rows):
-    path.parent.mkdir(parents=True, exist_ok=True)
-    with open(path, "w", newline="", encoding="utf-8") as f:
-        w = csv.DictWriter(f, fieldnames=FIELDS)
-        w.writeheader()
-        for r in sorted(rows, key=lambda r: (r["release_date"], r["release_time_gmt"])):
-            w.writerow({k: ("" if r[k] is None else r[k]) for k in FIELDS})
-
-
-def save_series(name, occ, out, now, stamp):
-    """Write raw JSON, the completed-rows CSV and (append-only) the upcoming snapshot for one series."""
+def save_series(name, occ, out, now):
+    """Overwrite raw/<series>.json with the embedded data and append the upcoming release's forecast to the snapshot file."""
     label = SERIES[name][1]
     (out / "raw").mkdir(parents=True, exist_ok=True)
-    (out / "raw" / f"{name}_{stamp}.json").write_text(json.dumps(occ), encoding="utf-8")
+    (out / "raw" / f"{name}.json").write_text(json.dumps(occ), encoding="utf-8")
     done = [row(o) for o in occ if o.get("actual") is not None]
     upcoming = [row(o) for o in occ if o.get("actual") is None]
-    write_csv(out / f"{name}.csv", done)
     snaps = out / "upcoming_snapshots.csv"
     if upcoming:
         new_file = not snaps.exists()
@@ -110,13 +99,12 @@ def main():
     args = ap.parse_args()
     out = Path(args.out)
     now = datetime.now(timezone.utc)
-    stamp = now.strftime("%Y%m%dT%H%M%SZ")
     with session(args) as page:
         for i, name in enumerate(args.series):
             if i:
                 pause()
             goto(page, BASE + SERIES[name][0])
-            save_series(name, occurrences(page), out, now, stamp)
+            save_series(name, occurrences(page), out, now)
             if args.deep:
                 page.wait_for_selector(TABLE, timeout=30000)
                 load_all(page, "Show More", TABLE + " tbody tr", close_selectors=[SIGNUP_WALL_CLOSE])

@@ -34,7 +34,7 @@
     "prev_day": { "date": "2026-09-30", "high": 294.8, "low": 286.4, "close": 291, "volume": 176739, "volume_ok": true },
     "pivots": { "type": "floor", "P": 290.733, "R1": 295.067, "R2": 299.133, "R3": 303.467, "S1": 286.667, "S2": 282.333, "S3": 278.267 },
     "opening_range": { "start_utc": "2026-10-01T14:30:00Z", "end_utc": "2026-10-01T14:45:00Z", "high": 291.3, "low": 289.3, "midpoint": 290.3 },
-    "bars_ref": { "file": "data/mcx_natgasmini_5min_release_windows.csv", "from_utc": "2026-10-01T14:00:00Z", "to_utc": "2026-10-01T16:00:00Z" }
+    "bars_ref": { "file": "data/mcx/natgasmini_5min_release_windows.csv", "from_utc": "2026-10-01T14:00:00Z", "to_utc": "2026-10-01T16:00:00Z" }
   },
   "signal": {
     "direction": "short",
@@ -55,7 +55,7 @@
   "provenance": {
     "created_at": "2026-10-07T12:00:00Z",
     "updated_at": "2026-10-07T12:00:00Z",
-    "sources": ["ir.eia.gov/ngs/ngs.html", "investing.com", "tradingeconomics.com", "data/mcx_natgasmini_5min_release_windows.csv"]
+    "sources": ["ir.eia.gov/ngs/ngs.html", "investing.com", "tradingeconomics.com", "data/mcx/natgasmini_5min_release_windows.csv"]
   },
   "notes": "The sign rule blocks the trade. The price-only short would have been stopped out (-1.8 points)."
 }

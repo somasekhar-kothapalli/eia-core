@@ -8,7 +8,8 @@
 | `fetch_investing.py` | Investing.com only: series list, parsing, CSV writing, CLI. Uses `browser.py` |
 | `eia_hist.py` | Loads every `data/eia/*.xls` into `{name: DataFrame(date, value)}` |
 | `build_releases.py` | Merges the Investing tables, validates release times and actuals |
-| `surprise_test_15y.py` | Daily-horizon surprise test |
+| `surprise_test_15y.py` | Daily-horizon surprise test on 15 years of consensus |
+| `daily_proxy_test.py` | The earlier consensus-free proxy test (output kept in `data/derived/`) |
 
 The old plain-HTTP fetcher was removed: the API page answered it with HTTP 403 on 7 Oct 2026.
 
@@ -24,7 +25,7 @@ python scripts/fetch_investing.py --launch-chrome --deep                # also t
 
 Series: `crude_stocks` (EIA crude), `api_crude`, `gas_storage`, `gasoline`, `distillates`.
 
-**Outputs** (`data/consensus/`): `<series>.csv` (completed releases: release_date, release_time_gmt, actual, forecast, previous, unit, occurrence_id; the forecast is as shown at fetch time, so history is *backfilled* consensus), `upcoming_snapshots.csv` (append-only: the upcoming release's forecast with the fetch time; run it about 5 minutes before a release to get a true pre-release snapshot), `raw/` (occurrences exactly as received).
+**Outputs** (`data/consensus/`): `<series>_table.csv` (with `--deep`: the full history, `release_utc` plus the shown values; the forecast is as shown at fetch time, so history is *backfilled* consensus), `upcoming_snapshots.csv` (append-only: the upcoming release's forecast with the fetch time; run it about 5 minutes before a release to get a true pre-release snapshot), `raw/<series>.json` (embedded occurrences exactly as received, overwritten each run). Derived tables go to `data/derived/`.
 
 ## Rules the scripts follow (do not weaken them)
 
@@ -39,4 +40,4 @@ The embedded data holds about 100 releases (back to Nov 2024). The history table
 
 ## Merge and validation
 
-`python scripts/build_releases.py` merges the `_table.csv` files into `data/releases_crude.csv` and `data/releases_gas.csv`, checks release times (New York clock) and actuals against EIA's own series, and writes `data/release_checks.csv`. Details and results: `docs/06_data_and_capture.md`.
+`python scripts/build_releases.py` merges the `_table.csv` files into `data/derived/releases_crude.csv` and `data/derived/releases_gas.csv`, checks release times (New York clock) and actuals against EIA's own series, and writes `data/derived/release_checks.csv`. Details and results: `docs/06_data_and_capture.md`.

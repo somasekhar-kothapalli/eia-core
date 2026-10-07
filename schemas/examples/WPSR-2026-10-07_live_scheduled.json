@@ -30,7 +30,7 @@
   "provenance": {
     "created_at": "2026-10-07T08:00:00Z",
     "updated_at": "2026-10-07T08:00:00Z",
-    "sources": ["data/mcx_crudeoil_daily.csv"]
+    "sources": ["data/mcx/crudeoil_daily.csv"]
   },
   "notes": "Example of a live record before the release: previous-day levels known, consensus and actuals empty. At T-5 min fill consensus (status pre_release); after the print fill actuals and bias (released); after 90 minutes fill signal, trade and outcome (closed)."
 }

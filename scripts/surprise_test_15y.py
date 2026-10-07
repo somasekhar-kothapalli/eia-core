@@ -50,7 +50,7 @@ def stats(df):
 def main():
     tests = []
     for name, f, key, col in (("Crude (WTI spot)", "releases_crude.csv", "RWTCd", "crude_"), ("Gas (Henry Hub spot)", "releases_gas.csv", "RNGWHHDd", "")):
-        d = pd.read_csv(ROOT / "data" / f)
+        d = pd.read_csv(ROOT / "data" / "derived" / f)
         d = d[d.usable & d[col + "forecast"].notna() & (d.release_et.str[:4].astype(int) >= 2011)]
         d = d.rename(columns={col + "z_exp": "z", col + "surprise": "s"}).dropna(subset=["z"])
         df = returns(d, key)
@@ -60,7 +60,7 @@ def main():
             tests.append({"series": name, "sample": label, **stats(sub)})
     t = pd.DataFrame(tests)
     print(t.to_string(index=False))
-    t.to_csv(ROOT / "data" / "surprise_test_15y.csv", index=False)
+    t.to_csv(ROOT / "data" / "derived" / "surprise_test_15y.csv", index=False)
 
 
 if __name__ == "__main__":

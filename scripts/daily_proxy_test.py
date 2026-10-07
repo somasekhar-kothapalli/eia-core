@@ -12,7 +12,6 @@ Parameters fixed before looking at results (7 Oct 2026):
   bias (negative z is bullish).
 - sub-periods fixed in advance.
 """
-import pickle
 import warnings
 
 import numpy as np
@@ -20,7 +19,9 @@ import pandas as pd
 from pandas.tseries.holiday import USFederalHolidayCalendar
 
 warnings.filterwarnings("ignore")
-H = pickle.load(open("eia_hist.pkl", "rb"))
+from eia_hist import load
+
+H = load()
 HOL = set(USFederalHolidayCalendar().holidays("1980-01-01", "2027-12-31"))
 
 
@@ -89,6 +90,3 @@ if __name__ == "__main__":
     report("GAS storage vs Henry Hub spot", gs)
     report("  gas first half", gs[gs.release < gs.release.median()])
     report("  gas second half", gs[gs.release >= gs.release.median()])
-    cr.to_csv("crude_z_returns.csv", index=False)
-    cu.to_csv("cushing_z_returns.csv", index=False)
-    gs.to_csv("gas_z_returns.csv", index=False)

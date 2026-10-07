@@ -1,9 +1,9 @@
 """Merge the Investing.com tables into one row per release and validate release times and actuals.
 
 Reads  data/consensus/<series>_table.csv and data/eia/*.xls (free EIA history, via eia_hist.py).
-Writes data/releases_crude.csv   (WPSR: crude + gasoline + distillates + API, surprises)
-       data/releases_gas.csv     (WNGSR: net change, surprise)
-       data/release_checks.csv   (every release whose time, weekday or actual did not pass; see docs/06)
+Writes data/derived/releases_crude.csv   (WPSR: crude + gasoline + distillates + API, surprises)
+       data/derived/releases_gas.csv     (WNGSR: net change, surprise)
+       data/derived/release_checks.csv   (every release whose time, weekday or actual did not pass; see docs/06)
 
 Checks per release (America/New_York clock):
   time_status:  ok = expected weekday at 10:30 ET | holiday_shift = a US federal holiday in the release week and a
@@ -82,19 +82,19 @@ def main():
         out[c if c == "api_utc" else f"api_{c}"] = a[c].values
     out["usable"] = out.time_status != "unexplained"
     out.insert(1, "release_et", crude.et.dt.strftime("%Y-%m-%d %a %H:%M"))
-    out.to_csv(ROOT / "data" / "releases_crude.csv", index=False)
+    out.to_csv(ROOT / "data" / "derived" / "releases_crude.csv", index=False)
 
     g = gas[["utc", "release_date_shown", "actual", "forecast", "previous", "surprise", "z_exp", "time_status", "actual_check"]]
     g = g.assign(usable=g.time_status != "unexplained")
     g.insert(1, "release_et", gas.et.dt.strftime("%Y-%m-%d %a %H:%M"))
-    g.to_csv(ROOT / "data" / "releases_gas.csv", index=False)
+    g.to_csv(ROOT / "data" / "derived" / "releases_gas.csv", index=False)
 
     bad = []
     for tag, df in (("WPSR", out), ("WNGSR", g)):
         x = df[(df.time_status != "ok") | ~df.actual_check.isin(["ok", "no_eia_row"])].copy()
         x.insert(0, "report", tag)
         bad.append(x[["report", "utc", "release_et", "time_status", "actual_check"]])
-    pd.concat(bad).to_csv(ROOT / "data" / "release_checks.csv", index=False)
+    pd.concat(bad).to_csv(ROOT / "data" / "derived" / "release_checks.csv", index=False)
 
     for tag, df in (("WPSR crude", out), ("WNGSR gas", g)):
         print(f"{tag}: {len(df)} releases {df.utc.min().date()} to {df.utc.max().date()} | time {df.time_status.value_counts().to_dict()} "

@@ -29,7 +29,7 @@
 
 ## 2. Our tests
 
-**Common method:** MCX continuous front month read from the user's TradingView chart (bar cap about 5,350 bars per symbol). Release time converted to UTC with the correct holiday exceptions (`data/events.csv`). Days or previous days with volume under 50% of the previous 5-day median are excluded (contract roll). Results are in **points of the underlying**, no costs, no option Greeks, no consensus filter. A bar that touches both stop and target counts as stopped first.
+**Common method:** MCX continuous front month read from the user's TradingView chart (bar cap about 5,350 bars per symbol). Release time converted to UTC with the correct holiday exceptions (`data/mcx/events.csv`). Days or previous days with volume under 50% of the previous 5-day median are excluded (contract roll). Results are in **points of the underlying**, no costs, no option Greeks, no consensus filter. A bar that touches both stop and target counts as stopped first.
 
 ### 2.1 Pass 1: 5-minute bars, 6 + 6 events (24 Aug to 1 Oct), corrected
 
@@ -64,7 +64,7 @@ Every design is within noise of zero. Pivot TP1 median distance in crude was abo
 
 ### 2.3 Daily-horizon test on free EIA history (consensus-free proxy)
 
-Weekly change minus the 5-year same-week mean, divided by its recent SD (z); returns on WTI/Henry Hub **spot** around the release day (R0 release day, R1 next day, R2 two days). Parameters fixed in advance; script in `data/eia/daily_horizon_test.py`.
+Weekly change minus the 5-year same-week mean, divided by its recent SD (z); returns on WTI/Henry Hub **spot** around the release day (R0 release day, R1 next day, R2 two days). Parameters fixed in advance; script in `scripts/daily_proxy_test.py`.
 
 | Series | n | corr(z, R0) | corr(z, R1) | corr(z, R2) |
 |---|---|---|---|---|
@@ -92,7 +92,7 @@ Source: Investing.com history (99 weeks, fetched with `scripts/fetch_investing.p
 
 ### 2.5 True consensus surprises on 15 years (rerun of 2.4)
 
-Source: `data/releases_crude.csv` / `releases_gas.csv` (usable rows, 2011 on, forecast present: crude 780 weeks, gas 767 usable with spot prices). z = surprise ÷ SD of **earlier** surprises only. Same spot returns as 2.4. Script `scripts/surprise_test_15y.py`, results `data/surprise_test_15y.csv`; parameters and periods fixed before running.
+Source: `data/derived/releases_crude.csv` / `releases_gas.csv` (usable rows, 2011 on, forecast present: crude 780 weeks, gas 767 usable with spot prices). z = surprise ÷ SD of **earlier** surprises only. Same spot returns as 2.4. Script `scripts/surprise_test_15y.py`, results `data/derived/surprise_test_15y.csv`; parameters and periods fixed before running.
 
 | Series | Sample | n | corr(z, R0) | corr(z, R1) | corr(z, R2) | Slope R0 (% per SD) |
 |---|---|---|---|---|---|---|
