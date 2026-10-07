@@ -19,6 +19,7 @@ The report mechanics, release calendar (including holiday delays), data tables, 
 | [`06_data_and_capture.md`](docs/06_data_and_capture.md) | Files in `data/` and `schemas/`, data-quality rules, forward capture routine, historical data options |
 | [`07_open_items.md`](docs/07_open_items.md) | Next 24 hours, inputs needed, rules still to set, unverified items, parked items |
 | [`08_corrections_log.md`](docs/08_corrections_log.md) | Every source claim checked (74 rows), grouped by topic, plus my own errors |
+| [`09_observation_checklist.md`](docs/09_observation_checklist.md) | Observe-only checklist for the 7 and 8 Oct reports: expectations, steps by time, what to verify |
 | [`snapshot_log.md`](docs/snapshot_log.md) | The fill-in template for each release (consensus, actuals, price, IV) |
 | [`data/`](data/), [`scripts/`](scripts/), [`schemas/`](schemas/) | `data/consensus` and `data/eia` (raw inputs), `data/mcx` (bars, events), `data/derived` (merged tables, test results); scripts; JSON schemas |
 | [`archive/`](archive/) | The earlier versions of the notes (untouched) |
