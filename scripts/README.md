@@ -29,3 +29,7 @@ Series: `crude_stocks` (EIA crude), `api_crude`, `gas_storage`, `gasoline`, `dis
 ## Limits
 
 The embedded data holds about 100 releases (back to Nov 2024). The history table also has a **"Show More" div** under it (a div, not a button). `--deep` clicks it (150 clicks max, 1.5 s apart) until the page stops at about 1,000 rows and writes `<series>_table.csv`. A full-screen sign-up overlay ("All markets. One FREE account", `#regwall-container`) can appear and block clicks; the script declines it with its X. Dates on in.investing.com are `dd-mm-yyyy` (handled). Release times from the page are mostly right but a few look odd (for example 13:30 GMT in Mar 2025, a Monday 22:00 GMT row in Dec 2025): validate against the EIA schedule before relying on them for intraday work.
+
+## Merge and validation
+
+`python scripts/build_releases.py` merges the `_table.csv` files into `data/releases_crude.csv` and `data/releases_gas.csv`, checks release times (New York clock) and actuals against EIA's own series, and writes `data/release_checks.csv`. Details and results: `docs/06_data_and_capture.md`.
