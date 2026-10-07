@@ -1,6 +1,6 @@
 """Merge the Investing.com tables into one row per release and validate release times and actuals.
 
-Reads  data/consensus/<series>_table.csv and data/eia/eia_hist.pkl (free EIA history).
+Reads  data/consensus/<series>_table.csv and data/eia/*.xls (free EIA history, via eia_hist.py).
 Writes data/releases_crude.csv   (WPSR: crude + gasoline + distillates + API, surprises)
        data/releases_gas.csv     (WNGSR: net change, surprise)
        data/release_checks.csv   (every release whose time, weekday or actual did not pass; see docs/06)
@@ -11,18 +11,19 @@ Checks per release (America/New_York clock):
   actual_check: Investing actual vs the change in EIA's own weekly stock series (week ending = last Friday before release)
 Surprise = actual - forecast (negative = bullish). z_exp = surprise / SD of earlier surprises only (min 52 weeks).
 """
-import pickle
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
 import pandas as pd
+
+from eia_hist import load
 from pandas.tseries.holiday import USFederalHolidayCalendar
 
 ROOT = Path(__file__).resolve().parents[1]
 CONS = ROOT / "data" / "consensus"
 ET = ZoneInfo("America/New_York")
 HOL = set(USFederalHolidayCalendar().holidays("1990-01-01", "2027-12-31"))
-EIA = pickle.load(open(ROOT / "data" / "eia" / "eia_hist.pkl", "rb"))
+EIA = load()
 
 
 def load(name, scale):

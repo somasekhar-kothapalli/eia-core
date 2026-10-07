@@ -6,6 +6,7 @@
 |---|---|
 | `browser.py` | **Reusable, site-independent** real-Chrome helpers (Playwright over the DevTools protocol): `session(args)` (launch or attach), `goto` (stops on non-200 or a verification page), `next_data`, `load_all` (click a "load more" control until it is gone, declining listed overlays), `table_rows`, `pause`, `add_args`. Holds the scraping rules; import it for any other site |
 | `fetch_investing.py` | Investing.com only: series list, parsing, CSV writing, CLI. Uses `browser.py` |
+| `eia_hist.py` | Loads every `data/eia/*.xls` into `{name: DataFrame(date, value)}` |
 | `build_releases.py` | Merges the Investing tables, validates release times and actuals |
 | `surprise_test_15y.py` | Daily-horizon surprise test |
 

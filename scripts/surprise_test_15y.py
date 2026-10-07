@@ -10,13 +10,14 @@ Fixed before looking at results (7 Oct 2026):
 - 2 instruments x 3 horizons = 6 main tests; Bonferroni |t| about 2.7
 """
 from pathlib import Path
-import pickle
 
 import numpy as np
 import pandas as pd
 
+from eia_hist import load
+
 ROOT = Path(__file__).resolve().parents[1]
-EIA = pickle.load(open(ROOT / "data" / "eia" / "eia_hist.pkl", "rb"))
+EIA = load()
 
 
 def returns(rel, key):
