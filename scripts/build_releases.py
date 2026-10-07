@@ -3,12 +3,13 @@
 Reads  data/consensus/<series>_table.csv and data/eia/*.xls (free EIA history, via eia_hist.py).
 Writes data/derived/releases_crude.csv   (WPSR: crude + gasoline + distillates + API, surprises)
        data/derived/releases_gas.csv     (WNGSR: net change, surprise)
-       data/derived/release_checks.csv   (every release whose time, weekday or actual did not pass; see docs/06)
 
 Checks per release (America/New_York clock):
   time_status:  ok = expected weekday at 10:30 ET | holiday_shift = a US federal holiday in the release week and a
                 later day or a time between 10:30 and 12:00 ET | unexplained = anything else (look at these by hand)
   actual_check: Investing actual vs the change in EIA's own weekly stock series (week ending = last Friday before release)
+Rows before 2009 that fail the time check (month-start dates, 04:00-05:00 ET) are dropped from the output; the failing rows
+that remain are the ones to look at: filter time_status != ok or actual_check not ok.
 Surprise = actual - forecast (negative = bullish). z_exp = surprise / SD of earlier surprises only (min 52 weeks).
 """
 from pathlib import Path
@@ -61,6 +62,11 @@ def check_actual(d, eia_key, factor):
     return out
 
 
+def junk(df):
+    """Rows from before 2009 that fail the time check: month-start dates and 04:00-05:00 ET times, no usable date."""
+    return (df.utc < pd.Timestamp("2009-01-01", tz="UTC")) & (df.time_status == "unexplained")
+
+
 def main():
     crude = load("crude_stocks", 1)  # million barrels
     crude["time_status"] = [time_status(t, 2) for t in crude.et]
@@ -82,19 +88,14 @@ def main():
         out[c if c == "api_utc" else f"api_{c}"] = a[c].values
     out["usable"] = out.time_status != "unexplained"
     out.insert(1, "release_et", crude.et.dt.strftime("%Y-%m-%d %a %H:%M"))
+    out = out[~junk(out)]
     out.to_csv(ROOT / "data" / "derived" / "releases_crude.csv", index=False)
 
     g = gas[["utc", "release_date_shown", "actual", "forecast", "previous", "surprise", "z_exp", "time_status", "actual_check"]]
     g = g.assign(usable=g.time_status != "unexplained")
     g.insert(1, "release_et", gas.et.dt.strftime("%Y-%m-%d %a %H:%M"))
+    g = g[~junk(g)]
     g.to_csv(ROOT / "data" / "derived" / "releases_gas.csv", index=False)
-
-    bad = []
-    for tag, df in (("WPSR", out), ("WNGSR", g)):
-        x = df[(df.time_status != "ok") | ~df.actual_check.isin(["ok", "no_eia_row"])].copy()
-        x.insert(0, "report", tag)
-        bad.append(x[["report", "utc", "release_et", "time_status", "actual_check"]])
-    pd.concat(bad).to_csv(ROOT / "data" / "derived" / "release_checks.csv", index=False)
 
     for tag, df in (("WPSR crude", out), ("WNGSR gas", g)):
         print(f"{tag}: {len(df)} releases {df.utc.min().date()} to {df.utc.max().date()} | time {df.time_status.value_counts().to_dict()} "

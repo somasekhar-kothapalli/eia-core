@@ -40,4 +40,4 @@ The embedded data holds about 100 releases (back to Nov 2024). The history table
 
 ## Merge and validation
 
-`python scripts/build_releases.py` merges the `_table.csv` files into `data/derived/releases_crude.csv` and `data/derived/releases_gas.csv`, checks release times (New York clock) and actuals against EIA's own series, and writes `data/derived/release_checks.csv`. Details and results: `docs/06_data_and_capture.md`.
+`python scripts/build_releases.py` merges the `_table.csv` files into `data/derived/releases_crude.csv` and `data/derived/releases_gas.csv`, checks release times (New York clock) and actuals against EIA's own series. Details and results: `docs/06_data_and_capture.md`.
