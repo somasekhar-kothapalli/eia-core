@@ -6,6 +6,8 @@ GRP_CH = "Chain"
 nStrikes = input.int(2, "Strikes each side of center", minval=1, maxval=12, group=GRP_CH,
      tooltip="Requests = 2 x (2N+1) + 3 market tickers. The center is the nearest strike when the chart loads; reload to re-center.")
 ratePct  = input.float(6.5, "Risk-free rate (%)", minval=0.0, group=GRP_CH)
+stalePct = input.float(50.0, "Warn when stale legs reach (%)", minval=0.0, maxval=100.0, group=GRP_CH,
+     tooltip="A leg is stale when it has no volume today: its price, IV and Greeks are from an earlier session. Stale legs are marked * and greyed.")
 
 GRP_UI = "Display"
 showGreeks = input.bool(false, "Show Greeks (Gamma, Theta, Vega)", group=GRP_UI)
@@ -118,6 +120,8 @@ type Row
     float pG
     float pTh
     float pV
+    bool cSt
+    bool pSt
 
 // ───────────────────────── Math ─────────────────────────
 npdf(float x) =>
@@ -167,6 +171,9 @@ greeks(float fw, float K, float T, float r, float sig, bool isCall) =>
 // ───────────────────────── Helpers ─────────────────────────
 fmtN(float v, string f) =>
     na(v) ? "-" : str.tostring(v, f)
+
+mark(string txt, bool stale) =>
+    stale ? txt + "*" : txt
 
 volTxt(bool pct, float v, float tot) =>
     pct ? (na(v) or tot <= 0 ? "-" : str.tostring(v / tot * 100.0, "0.0") + "%") : fmtN(v, "#")
@@ -249,6 +256,7 @@ color cDn    = #EF5350
 color cItm   = color.new(#2962FF, 85)
 color cAtm   = color.new(#FFB300, 60)
 color cBase  = #131722
+color cStale = #787B86
 
 float fut = close
 
@@ -331,6 +339,12 @@ if (barstate.islastconfirmedhistory or barstate.isrealtime) and not na(lockedCen
     float atmIvC = na
     float atmIvP = na
     int missing = 0
+    int staleN = 0
+    float freshDist = 1.0e10
+    float freshK = na
+    float freshIv = na
+    bool atmCF = false
+    bool atmPF = false
 
     for i = -nStrikes to nStrikes
         float K = center + i * stepUsed
@@ -344,12 +358,19 @@ if (barstate.islastconfirmedhistory or barstate.isrealtime) and not na(lockedCen
         missing += na(cLtp) ? 1 : 0
         missing += na(pLtp) ? 1 : 0
 
+        bool cFresh = not na(cLtp) and nz(cVol) > 0
+        bool pFresh = not na(pLtp) and nz(pVol) > 0
+        staleN += (cFresh ? 0 : 1) + (pFresh ? 0 : 1)
+        float dist = math.abs(K - fut)
+
         Row rr = Row.new()
         rr.k := K
         rr.cLtp := cLtp
         rr.pLtp := pLtp
         rr.cVol := cVol
         rr.pVol := pVol
+        rr.cSt := not cFresh
+        rr.pSt := not pFresh
         rr.cChg := (not na(cLtp) and not na(cPrev) and cPrev != 0) ? (cLtp / cPrev - 1.0) * 100.0 : na
         rr.pChg := (not na(pLtp) and not na(pPrev) and pPrev != 0) ? (pLtp / pPrev - 1.0) * 100.0 : na
 
@@ -371,6 +392,19 @@ if (barstate.islastconfirmedhistory or barstate.isrealtime) and not na(lockedCen
             rr.pV := v1p
         rows.push(rr)
 
+        if (cFresh or pFresh) and dist < freshDist
+            freshDist := dist
+            freshK := K
+            float ivSum = 0.0
+            int ivCnt = 0
+            if cFresh and not na(ivC)
+                ivSum += ivC
+                ivCnt += 1
+            if pFresh and not na(ivP)
+                ivSum += ivP
+                ivCnt += 1
+            freshIv := ivCnt > 0 ? ivSum / ivCnt : na
+
         totCV += nz(cVol)
         totPV += nz(pVol)
         sumKV += K * (nz(cVol) + nz(pVol))
@@ -385,7 +419,6 @@ if (barstate.islastconfirmedhistory or barstate.isrealtime) and not na(lockedCen
         if nz(pVol) > maxPV
             maxPV := pVol
             maxPK := K
-        float dist = math.abs(K - fut)
         if dist < bestDist
             bestDist := dist
             atmK := K
@@ -393,6 +426,8 @@ if (barstate.islastconfirmedhistory or barstate.isrealtime) and not na(lockedCen
             atmP := pLtp
             atmIvC := ivC
             atmIvP := ivP
+            atmCF := cFresh
+            atmPF := pFresh
 
     float totAll = totCV + totPV
     float pcr = totCV > 0 ? totPV / totCV : na
@@ -400,13 +435,15 @@ if (barstate.islastconfirmedhistory or barstate.isrealtime) and not na(lockedCen
     float vwc = sumV > 0 ? sumKV / sumV : na
     float straddle = (not na(atmC) and not na(atmP)) ? atmC + atmP : na
     float movePct = (not na(straddle) and fut > 0) ? straddle / fut * 100.0 : na
+    float fIvC = atmCF ? atmIvC : na
+    float fIvP = atmPF ? atmIvP : na
     float atmIv = na
-    if not na(atmIvC) and not na(atmIvP)
-        atmIv := (atmIvC + atmIvP) / 2.0
-    else if not na(atmIvC)
-        atmIv := atmIvC
-    else if not na(atmIvP)
-        atmIv := atmIvP
+    if not na(fIvC) and not na(fIvP)
+        atmIv := (fIvC + fIvP) / 2.0
+    else if not na(fIvC)
+        atmIv := fIvC
+    else if not na(fIvP)
+        atmIv := fIvP
     int total = (2 * nStrikes + 1) * 2
 
     // ── Pass 2: draw table ──
@@ -429,8 +466,8 @@ if (barstate.islastconfirmedhistory or barstate.isrealtime) and not na(lockedCen
         bool isAtm = K == atmK
         string kTxt = str.tostring(K, kFmt) + (K == maxCK ? " R" : "") + (K == maxPK ? " S" : "")
 
-        callTxt = showGreeks ? array.from(volTxt(volPct, rr.cVol, totAll), fmtN(rr.cV, "0.00"), fmtN(rr.cTh, "0.00"), fmtN(rr.cG, "0.0000"), fmtN(rr.cD, "0.00"), fmtN(rr.cIv * 100.0, "0.0"), fmtN(rr.cChg, "0.0"), fmtN(rr.cLtp, "0.00")) : array.from(volTxt(volPct, rr.cVol, totAll), fmtN(rr.cD, "0.00"), fmtN(rr.cIv * 100.0, "0.0"), fmtN(rr.cChg, "0.0"), fmtN(rr.cLtp, "0.00"))
-        putTxt  = showGreeks ? array.from(fmtN(rr.pLtp, "0.00"), fmtN(rr.pChg, "0.0"), fmtN(rr.pIv * 100.0, "0.0"), fmtN(rr.pD, "0.00"), fmtN(rr.pG, "0.0000"), fmtN(rr.pTh, "0.00"), fmtN(rr.pV, "0.00"), volTxt(volPct, rr.pVol, totAll)) : array.from(fmtN(rr.pLtp, "0.00"), fmtN(rr.pChg, "0.0"), fmtN(rr.pIv * 100.0, "0.0"), fmtN(rr.pD, "0.00"), volTxt(volPct, rr.pVol, totAll))
+        callTxt = showGreeks ? array.from(volTxt(volPct, rr.cVol, totAll), fmtN(rr.cV, "0.00"), fmtN(rr.cTh, "0.00"), fmtN(rr.cG, "0.0000"), fmtN(rr.cD, "0.00"), mark(fmtN(rr.cIv * 100.0, "0.0"), rr.cSt), fmtN(rr.cChg, "0.0"), mark(fmtN(rr.cLtp, "0.00"), rr.cSt)) : array.from(volTxt(volPct, rr.cVol, totAll), fmtN(rr.cD, "0.00"), mark(fmtN(rr.cIv * 100.0, "0.0"), rr.cSt), fmtN(rr.cChg, "0.0"), mark(fmtN(rr.cLtp, "0.00"), rr.cSt))
+        putTxt  = showGreeks ? array.from(mark(fmtN(rr.pLtp, "0.00"), rr.pSt), fmtN(rr.pChg, "0.0"), mark(fmtN(rr.pIv * 100.0, "0.0"), rr.pSt), fmtN(rr.pD, "0.00"), fmtN(rr.pG, "0.0000"), fmtN(rr.pTh, "0.00"), fmtN(rr.pV, "0.00"), volTxt(volPct, rr.pVol, totAll)) : array.from(mark(fmtN(rr.pLtp, "0.00"), rr.pSt), fmtN(rr.pChg, "0.0"), mark(fmtN(rr.pIv * 100.0, "0.0"), rr.pSt), fmtN(rr.pD, "0.00"), volTxt(volPct, rr.pVol, totAll))
 
         int rw = 3 + idx
         color callBg = isAtm ? cAtm : (K < fut ? cItm : cBase)
@@ -441,17 +478,20 @@ if (barstate.islastconfirmedhistory or barstate.isrealtime) and not na(lockedCen
             bool pIsVol = putHdr.get(j) == "Vol"
             color cBg = cIsVol ? heat(rr.cVol, maxAny, cUp, callBg, heatOn) : callBg
             color pBg = pIsVol ? heat(rr.pVol, maxAny, cDn, putBg, heatOn) : putBg
-            color cCol = callHdr.get(j) == "Chg%" ? (nz(rr.cChg) > 0 ? cUp : nz(rr.cChg) < 0 ? cDn : cWhite) : cWhite
-            color pCol = putHdr.get(j) == "Chg%" ? (nz(rr.pChg) > 0 ? cUp : nz(rr.pChg) < 0 ? cDn : cWhite) : cWhite
+            color cCol = rr.cSt ? cStale : callHdr.get(j) == "Chg%" ? (nz(rr.cChg) > 0 ? cUp : nz(rr.cChg) < 0 ? cDn : cWhite) : cWhite
+            color pCol = rr.pSt ? cStale : putHdr.get(j) == "Chg%" ? (nz(rr.pChg) > 0 ? cUp : nz(rr.pChg) < 0 ? cDn : cWhite) : cWhite
             table.cell(t, j, rw, callTxt.get(j), text_color = cCol, bgcolor = cBg, text_size = txtSize)
             table.cell(t, nc + 1 + j, rw, putTxt.get(j), text_color = pCol, bgcolor = pBg, text_size = txtSize)
         table.cell(t, nc, rw, kTxt, text_color = isAtm ? color.black : color.white, bgcolor = isAtm ? color.new(#FFB300, 0) : cHdr, text_size = txtSize)
 
     int fRow = fRowStat
     string f1 = "Vol  Call " + str.tostring(totCV, "#") + " | Put " + str.tostring(totPV, "#") + " | PCR " + fmtN(pcr, "0.00") + " | PCR near-ATM (+/-" + str.tostring(near) + ") " + fmtN(pcrNear, "0.00")
-    string f2 = "ATM IV " + fmtN(atmIv * 100.0, "0.0") + "% | Straddle " + fmtN(straddle, "0.0") + " (+/-" + fmtN(movePct, "0.0") + "%) | Implied range " + fmtN(fut - straddle, pFmt) + " - " + fmtN(fut + straddle, pFmt)
+    bool atmFresh = atmCF and atmPF
+    string ivNote = na(atmIv) ? " (ATM legs not traded today; nearest traded strike " + fmtN(freshK, kFmt) + " IV " + fmtN(freshIv * 100.0, "0.0") + "%)" : ""
+    string f2 = "ATM IV " + fmtN(atmIv * 100.0, "0.0") + "%" + ivNote + " | Straddle " + fmtN(straddle, "0.0") + (atmFresh ? "" : " (stale)") + " (+/-" + fmtN(movePct, "0.0") + "%) | Implied range " + fmtN(fut - straddle, pFmt) + " - " + fmtN(fut + straddle, pFmt)
+    string staleWarn = total > 0 and staleN * 100.0 / total >= stalePct ? "STALE CHAIN: " + str.tostring(staleN) + " of " + str.tostring(total) + " legs have no volume today, so prices and IV are old | " : ""
     string noData = missing == total ? "NO OPTION DATA: check the expiry date and that these options are listed | " : ""
-    string f3 = noData + "Peak call vol R " + fmtN(maxCK, kFmt) + " | Peak put vol S " + fmtN(maxPK, kFmt) + " | Vol-wtd center " + fmtN(vwc, pFmt) + " | DTE " + str.tostring(T * 365.0, "0.0") + " | Missing " + str.tostring(missing) + "/" + str.tostring(total)
+    string f3 = staleWarn + noData + "Peak call vol R " + fmtN(maxCK, kFmt) + " | Peak put vol S " + fmtN(maxPK, kFmt) + " | Vol-wtd center " + fmtN(vwc, pFmt) + " | DTE " + str.tostring(T * 365.0, "0.0") + " | Missing " + str.tostring(missing) + "/" + str.tostring(total) + " | Stale " + str.tostring(staleN) + "/" + str.tostring(total) + " (* = no volume today)"
 
     string confR = (not na(maxCK) and not na(pdh) and math.abs(maxCK - pdh) <= stepUsed) ? " | R near PDH" : ""
     string confS = (not na(maxPK) and not na(pdl) and math.abs(maxPK - pdl) <= stepUsed) ? " | S near PDL" : ""

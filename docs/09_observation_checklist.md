@@ -30,7 +30,7 @@
 - [ ] EIA WPSR schedule page: no delay today (☐ normal 10:30 ET)
 - [ ] Previous day volume vs 5-day median ≥ 50% (data-quality rule), and the contract is not expiring
 - [ ] Any pop-up on TradingView or the browser closed (sign-up wall, dialogs)
-- [ ] Note the `Missing x/34` figure of the chain table (data quality)
+- [ ] Note the `Missing x/34` and `Stale n/34` figures of the chain table (data quality). A leg marked `*` has no volume today, so its price and IV are old; a `STALE CHAIN` warning means do not pick a strike from it (needs the updated indicator, `tradingview/mcx_option_chain_levels.pine`)
 
 ### 7:55 PM: T−5 snapshot (Block A, Block E baseline)
 - [ ] Claude: run `python scripts/fetch_investing.py --launch-chrome --series crude_stocks api_crude gasoline distillates`; check the new rows in `upcoming_snapshots.csv` carry a T−5 timestamp
