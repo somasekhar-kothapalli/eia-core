@@ -88,3 +88,5 @@ A 40% premium target would need a 264-point crude or 13–15-point gas move: far
 - The NATGASMINI Jan 2027 options start trading 26 Oct 2026, which suggests options are listed about three months ahead, so **Nov and Dec 2026 gas options should already exist** ❓ (not seen directly). Crude listing lead time not checked.
 - CRUDEOILM is assumed to expire with CRUDEOIL ❓.
 - The indicator (`tradingview/mcx_option_chain_levels.pine`) holds this table in `expiryFor()`. Unknown dates stay empty and the table says so.
+
+**Nov chains on 7 Oct 2026 (tested with the updated indicator): they load (Missing 0/34) but are not usable yet.** Crude Nov (`CRUDEOILX2026`, Exp 17 Nov, Fut 8,664): 15 of 17 strikes had volume 0 and stale last prices, with call IV 31–45% against put IV 40–62%; ATM IV 36.5% is not trustworthy. Gas mini Nov (`NATGASMINIX2026`, Exp 20 Nov, Fut 340.30, about 10% above the Oct future): most strikes had no volume and no valid IV; ATM IV 57.6%. "Missing 0/34" does not detect stale quotes, so also check volume. Re-test on the day before 15 Oct (crude) and 22 Oct (gas) to see whether liquidity has moved to the next month.
